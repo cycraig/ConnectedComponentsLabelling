@@ -76,6 +76,8 @@ struct CPUBitmap {
     // static method used for glut callbacks
     static void Draw( void ) {
         CPUBitmap*   bitmap = *(get_bitmap_ptr());
+	glRasterPos2f(-1,1);
+ 	glPixelZoom( 1, -1 );
         glClearColor( 0.0, 0.0, 0.0, 1.0 );
         glClear( GL_COLOR_BUFFER_BIT );
         glDrawPixels( bitmap->x, bitmap->y, GL_RGBA, GL_UNSIGNED_BYTE, bitmap->pixels );
