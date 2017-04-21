@@ -1,11 +1,16 @@
-CFLAGS=-O0 -g -Wno-deprecated-gpu-targets
+CFLAGS=-O1 -g -Wno-deprecated-gpu-targets
 INC=-I./inc
 LDFLAGS= -lglut -lGL -lGLU
-CU=./src/EasyBMP.cpp ./src/ccl.cu
-EXE=ccl
+SHAREDC=./src/EasyBMP.cpp
 CC=nvcc
 
-all: $(EXE)
+all: ccl ccl_fast
 
-$(EXE): $(CU)
-	$(CC) $(CFLAGS) $(CU) $(INC) $(LDFLAGS) -o $(EXE) 
+ccl: ./src/ccl.cu
+	$(CC) $(CFLAGS) $(SHAREDC) ./src/ccl.cu $(INC) $(LDFLAGS) -o ccl
+
+ccl_fast: ./src/ccl_fast.cu
+	$(CC) $(CFLAGS) $(SHAREDC) ./src/ccl_fast.cu $(INC) $(LDFLAGS) -o ccl_fast
+
+clean:
+	rm ccl ccl_fast

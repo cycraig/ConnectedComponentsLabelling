@@ -212,8 +212,8 @@ void updateLabelArray(int* labelArray, int** L, int maxLabel) {
 			}
 		}
 	}
-	printf("LABEL ARRAY:\n");
-	printArray(labelArray,maxLabel+1);
+	//printf("LABEL ARRAY:\n");
+	//printArray(labelArray,maxLabel+1);
 }
 
 void resolveEquivalences(int** L, int maxLabel) {
@@ -319,11 +319,11 @@ void label(int* region, CPUBitmap* output, int width, int height) {
 	resolveEquivalences(equivalenceMatrix,labelCount);
 	int* labelArray = new int[labelCount+1];
 	updateLabelArray(labelArray,equivalenceMatrix,labelCount);
-	printf("BEFORE:\n");
-	printLabels(region,width,height);
+	//printf("BEFORE:\n");
+	//printLabels(region,width,height);
 	updateRegion(region,labelArray,width,height);
-	printf("AFTER:\n");
-	printLabels(region,width,height);
+	//printf("AFTER:\n");
+	//printLabels(region,width,height);
 	
 	int** labelColours = new int*[labelCount+1];
 	for(int i = 1; i < labelCount+1; i++) labelColours[i] = new int[3];
@@ -368,13 +368,13 @@ int main(int argc, char **argv) {
     data.frames = 0;
     //HANDLE_ERROR( cudaEventCreate( &data.start ) );
     //HANDLE_ERROR( cudaEventCreate( &data.stop ) );
-	copyBMPtoBitmap(&input,&bitmap);
-	int* binaryImage = new int[width*height];
-	bitmapToBinary(&bitmap,binaryImage);
-	printf("LABELLING...\n");
-	label(binaryImage,&bitmap,width,height);
-	printf("FINISHED...\n");
-	copyBitmapToBMP(&bitmap,&output);
+    copyBMPtoBitmap(&input,&bitmap);
+    int* binaryImage = new int[width*height];
+    bitmapToBinary(&bitmap,binaryImage);
+    printf("LABELLING...\n");
+    label(binaryImage,&bitmap,width,height);
+    printf("FINISHED...\n");
+    copyBitmapToBMP(&bitmap,&output);
     //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
     //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
     output.WriteToFile("out.bmp");
