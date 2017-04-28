@@ -10,8 +10,8 @@
 
 #include "EasyBMP.h"
 
-int regionWidth = 55;
-int regionHeight = 55;
+int regionWidth = 13;
+int regionHeight = 13;
 int total_index;
 
 // globals needed by the update routine
@@ -692,7 +692,7 @@ int main(int argc, char **argv) {
     findCudaDevice(argc, (const char **)argv);
 
     //source and results image filenames
-    char SampleImageFname[] = "test.bmp";
+    char SampleImageFname[] = "3pixeldeath.bmp";
     char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
     if (pSampleImageFpath == NULL) {
