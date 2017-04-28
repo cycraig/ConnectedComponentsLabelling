@@ -373,6 +373,12 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height) {
     if (height%block_dim.y != 0) gridHeight++;
     int result = false;
     dim3 grid_dim(gridWidth, gridHeight);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
     //printf("Initial...\n");
     //printMatrix(image,width,height);
     gpu_label<<<grid_dim, block_dim>>>(width, height);
@@ -401,6 +407,12 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height) {
         gpu_rescan<<<grid_dim, block_dim>>>(width, height);
         cudaErrorCheck(cudaMemcpyFromSymbol(&result, done, sizeof(bool)));
     }
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("Took %.6f ms\n",milliseconds);
+
     cudaErrorCheck(cudaMemcpyFromArray(image, gpuImage, 0, 0,width*height*sizeof(int), cudaMemcpyDeviceToHost));
     // apparently you don't have to unbind surfaces.
     cudaErrorCheck(cudaFreeArray(gpuImage));
