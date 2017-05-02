@@ -1,21 +1,7 @@
-
 #include <cuda_runtime.h>
-#include <helper_functions.h>    // includes cuda.h and cuda_runtime_api.h
-#include <helper_cuda.h>
-#include <cstring> 
-#include <cmath>
-#include "cuda.h"
-#include "book.h" //HANDLE_ERROR
-#include "cpu_bitmap.h" 
-
-#include "EasyBMP.h"
-
-int regionWidth = 8;
-int regionHeight = 8;
-int total_index;
-
-//Texture binding variable
-surface<void, cudaSurfaceType2D> surf_ref; 
+#include <cuda.h>
+#include "../inc/helper_cuda.h"
+#include "common_ccl.h"
 
 #define cudaErrorCheck(t) { \
  t; \
@@ -26,151 +12,12 @@ surface<void, cudaSurfaceType2D> surf_ref;
  } \
 }
 
-// globals needed by the update routine
-struct DataBlock {
-    unsigned char   *output_bitmap;
-    float           *dev_inSrc;
-    float           *dev_outSrc;
-    float           *dev_constSrc;
-    //CPUAnimBitmap  *bitmap;
-    CPUBitmap  *bitmap;
+int regionWidth = 8;
+int regionHeight = 8;
+int total_index;
 
-    cudaEvent_t     start, stop;
-    float           totalTime;
-    float           frames;
-};
-
-void anim_gpu( DataBlock *d, int ticks ) {
-    /*HANDLE_ERROR( cudaEventRecord( d->start, 0 ) );
-    dim3    blocks(DIM/16,DIM/16);
-    dim3    threads(16,16);
-    CPUAnimBitmap  *bitmap = d->bitmap;
-
-    // since tex is global and bound, we have to use a flag to
-    // select which is in/out per iteration
-    volatile bool dstOut = true;
-    for (int i=0; i<90; i++) {
-        float   *in, *out;
-        if (dstOut) {
-            in  = d->dev_inSrc;
-            out = d->dev_outSrc;
-        } else {
-            out = d->dev_inSrc;
-            in  = d->dev_outSrc;
-        }
-        copy_const_kernel<<<blocks,threads>>>( in );
-        blend_kernel<<<blocks,threads>>>( out, dstOut );
-        dstOut = !dstOut;
-    }
-    float_to_color<<<blocks,threads>>>( d->output_bitmap,
-                                        d->dev_inSrc );
-
-    HANDLE_ERROR( cudaMemcpy( bitmap->get_ptr(),
-                              d->output_bitmap,
-                              bitmap->image_size(),
-                              cudaMemcpyDeviceToHost ) );
-
-    HANDLE_ERROR( cudaEventRecord( d->stop, 0 ) );
-    HANDLE_ERROR( cudaEventSynchronize( d->stop ) );
-    float   elapsedTime;
-    HANDLE_ERROR( cudaEventElapsedTime( &elapsedTime,
-                                        d->start, d->stop ) );
-    d->totalTime += elapsedTime;
-    ++d->frames;
-    printf( "Average Time per frame:  %3.1f ms\n",
-            d->totalTime/d->frames  );*/
-}
-
-// clean up memory allocated on the GPU
-void anim_exit( DataBlock *d ) {
-    /*
-    cudaUnbindTexture( texIn );
-    cudaUnbindTexture( texOut );
-    cudaUnbindTexture( texConstSrc );
-    HANDLE_ERROR( cudaFree( d->dev_inSrc ) );
-    HANDLE_ERROR( cudaFree( d->dev_outSrc ) );
-    HANDLE_ERROR( cudaFree( d->dev_constSrc ) );
-
-    HANDLE_ERROR( cudaEventDestroy( d->start ) );
-    HANDLE_ERROR( cudaEventDestroy( d->stop ) );
-    */
-}
-
-void printMatrix(int* matrix, int width, int height) {
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			int val = matrix[y*width+x];
-			if(val < 10) {
-				printf(" %d ",val);
-			} else {
-				printf("%d ",val);
-			}
-		}
-		printf("\n");
-	}
-}
-
-void copyBMPtoBitmap(BMP* input, CPUBitmap* output) {
-	unsigned char *rgbaPixels = output->get_ptr();
-	int width = input->TellWidth();
-	int height = input->TellHeight();
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			rgbaPixels[y*4*width+4*x]   = (*input)(x,y)->Red;
-			rgbaPixels[y*4*width+4*x+1] = (*input)(x,y)->Green;
-			rgbaPixels[y*4*width+4*x+2] = (*input)(x,y)->Blue;
-			rgbaPixels[y*4*width+4*x+3] = (*input)(x,y)->Alpha;
-		}
-	}
-}
-
-void copyBitmapToBMP(CPUBitmap* input, BMP* output) {
-	unsigned char *rgbaPixels = input->get_ptr();
-	int width = input->x;
-	int height = input->y;
-	output->SetSize(width,height);
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			(*output)(x,y)->Red   = rgbaPixels[y*4*width+4*x];
-		    (*output)(x,y)->Green = rgbaPixels[y*4*width+4*x+1];
-			(*output)(x,y)->Blue  = rgbaPixels[y*4*width+4*x+2];
-			(*output)(x,y)->Alpha = rgbaPixels[y*4*width+4*x+3];
-		}
-	}
-}
-
-void bitmapToBinary(CPUBitmap* input, int *output) {
-	unsigned char *rgbaPixels = input->get_ptr();
-	int width = input->x;
-	int height = input->y;
-	// output should be of size width*height
-	// assuming 4 byte stride for RGBA values
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			unsigned char r = rgbaPixels[y*4*width+4*x];
-			unsigned char g = rgbaPixels[y*4*width+4*x+1];
-			unsigned char b = rgbaPixels[y*4*width+4*x+2];
-			// Thresholding according to: (r+g+b)/3 > 128
-			output[y*width+x] = ((r+g+b) > 348); // 1 -> white, 0 -> black
-		}
-	}
-}
-
-void binaryToBitmap(int *input, CPUBitmap* output) {
-	unsigned char *rgbaPixels = output->get_ptr();
-	int width = output->x;
-	int height = output->y;
-	// assuming 4 byte stride for RGBA values
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			// [0,1] -> [0,255]
-			rgbaPixels[y*4*width+4*x]   = input[y*width+x]*255;
-			rgbaPixels[y*4*width+4*x+1] = input[y*width+x]*255;
-			rgbaPixels[y*4*width+4*x+2] = input[y*width+x]*255;
-			rgbaPixels[y*4*width+4*x+3] = 255;
-		}
-	}
-}
+//Texture binding variable
+surface<void, cudaSurfaceType2D> surf_ref; 
 
 void colourise(int* input, CPUBitmap* output, int width, int height) {
 	unsigned char *rgbaPixels = output->get_ptr();
@@ -251,7 +98,7 @@ __global__ void gpu_analysis(int width, int height) {
     // STEP 3 - Analysis
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int i = y*width + x;
+    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -296,7 +143,7 @@ __global__ void gpu_link(int width, int height) {
     // STEP 4 - Link
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int i = y*width + x;
+    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -321,7 +168,7 @@ __global__ void gpu_relabel(int width, int height) {
     // STEP 5 - Re-label
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int i = y*width + x;
+    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -343,7 +190,7 @@ __global__ void gpu_rescan(int width, int height) {
     // STEP 5 - Re-Scan
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    int i = y*width + x;
+    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -377,8 +224,8 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height) {
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
-
     cudaEventRecord(start);
+
     //printf("Initial...\n");
     //printMatrix(image,width,height);
     gpu_label<<<grid_dim, block_dim>>>(width, height);
@@ -407,11 +254,12 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height) {
         gpu_rescan<<<grid_dim, block_dim>>>(width, height);
         cudaErrorCheck(cudaMemcpyFromSymbol(&result, done, sizeof(bool)));
     }
+
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Took %.6f ms\n",milliseconds);
+    printf("Time elapsed (gpu): %.6f ms\n",milliseconds);
 
     cudaErrorCheck(cudaMemcpyFromArray(image, gpuImage, 0, 0,width*height*sizeof(int), cudaMemcpyDeviceToHost));
     // apparently you don't have to unbind surfaces.
@@ -456,8 +304,6 @@ int main(int argc, char **argv) {
     DataBlock   data;
     CPUBitmap bitmap( width, height, &data );
     data.bitmap = &bitmap;
-    data.totalTime = 0;
-    data.frames = 0;
     //HANDLE_ERROR( cudaEventCreate( &data.start ) );
     //HANDLE_ERROR( cudaEventCreate( &data.stop ) );
     copyBMPtoBitmap(&input,&bitmap);
@@ -465,8 +311,23 @@ int main(int argc, char **argv) {
     bitmapToBinary(&bitmap,binaryImage);
 
     printf("LABELLING...\n");
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+
+   // double start_time = omp_get_wtime();
+
     gpu_label(binaryImage,&bitmap,width,height);
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
     printf("FINISHED...\n");
+    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
+    printf("Time elapsed (total): %.6f ms\n",milliseconds);
 
     copyBitmapToBMP(&bitmap,&output);
     //binaryToBitmap(binaryImage,&bitmap);
@@ -475,5 +336,6 @@ int main(int argc, char **argv) {
     //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
     output.WriteToFile("out.bmp");
     bitmap.display_and_exit((void (*)(void*))anim_exit);
+    delete[] binaryImage;
 }
 
