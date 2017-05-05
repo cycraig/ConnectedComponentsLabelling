@@ -16,6 +16,7 @@ struct DataBlock {
 void copyBMPtoBitmap(BMP* input, CPUBitmap* output);
 void copyBitmapToBMP(CPUBitmap* input, BMP* output);
 void printMatrix(int* matrix, int width, int height);
+void printMatrix(int** matrix, int width, int height);
 void bitmapToBinary(CPUBitmap* input, int *output);
 void binaryToBitmap(int *input, CPUBitmap* output);
 void imageToBitmap(int* image, CPUBitmap* output);

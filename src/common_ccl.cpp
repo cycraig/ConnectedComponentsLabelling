@@ -92,6 +92,20 @@ void markEquivalent(int** equivalenceMatrix, int a, int b) {
 	equivalenceMatrix[b][a] = 1;
 }
 
+void printMatrix(int* matrix, int width, int height) {
+	for(int y = 0; y < height; y++) {
+		for(int x = 0; x < width; x++) {
+			int val = matrix[y*width+x];
+			if(val < 10) {
+				printf(" %d ",val);
+			} else {
+				printf("%d ",val);
+			}
+		}
+		printf("\n");
+	}
+}
+
 void printMatrix(int** matrix, int width, int height) {
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {

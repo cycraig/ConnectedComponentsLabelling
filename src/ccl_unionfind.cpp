@@ -1,14 +1,14 @@
 #include "common_ccl.h"
 #include <mpi.h>
+#include <omp.h>
 
 int commSize;
 
 class UF {
-    int *id, cnt;
+    int *id;
 public:
     // Create an empty union find data structure with N isolated sets.
     UF(int N) {
-        cnt = N;
         id = new int[N];
         for (int i = 0; i<N; i++) {
             id[i] = i;
@@ -44,17 +44,11 @@ public:
         } else { 
             id[j] = i;
         }
-        cnt--;
     }
     
     // Are objects x and y in the same set?
     bool connected(int x, int y) { 
         return find(x) == find(y);
-    }
-    
-    // Return the number of disjoint sets.
-    int count() { 
-        return cnt;
     }
 };
 
@@ -93,30 +87,35 @@ void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
 
     int offset = rank*rowsPerRank*width;
 
-    // initial labelling
+    // marking equivalences
+	
 	for(int y = 0; y < rowsPerRank && y+rowsPerRank*rank < height; y++) {
 		for(int x = 0; x < width; x++) {
 			// ignore background pixel
 			if(blockRows[y*width+x] > 0) {
 			    // check neighbour mask
 			    int n=0,nw=0,ne=0,w=0,label=0;
-                // global label
+                // local label
                 label = y*width+x+1;
 			    if(x > 0) {
 				    w = blockRows[y*width+x-1];
-                    unionFind.merge(label,y*width+x-1+1);
+					if(w != 0) 
+	                    unionFind.merge(label,y*width+x-1+1);
 			    }
 			    if(y > 0) {
 				    n = blockRows[(y-1)*width+x];
-                    unionFind.merge(label,(y-1)*width+x+1);
+					if(n != 0)
+                   		unionFind.merge(label,(y-1)*width+x+1);
 			    }
 			    if(y > 0 && x > 0) {
 				    nw = blockRows[(y-1)*width+(x-1)];
-                    unionFind.merge(label,(y-1)*width+(x-1)+1);
+					if(nw != 0)
+                    	unionFind.merge(label,(y-1)*width+(x-1)+1);
 			    }
 			    if(y > 0 && x < (width-1)) {
 				    ne = blockRows[(y-1)*width+(x+1)];
-                    unionFind.merge(label,(y-1)*width+(x+1)+1);
+					if(ne != 0)
+                    	unionFind.merge(label,(y-1)*width+(x+1)+1);
 			    }
 			    //image[y*width+x] = label;
             }
@@ -149,7 +148,7 @@ int main(int argc, char **argv) {
 		printf("%s Starting...\n\n", argv[0]);
 
 		//source and results image filenames
-		char SampleImageFname[] = "3pixeldeath.bmp";
+		char SampleImageFname[] = "test.bmp";
 		char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
 		if (pSampleImageFpath == NULL) {
@@ -242,6 +241,7 @@ int main(int argc, char **argv) {
 
 	if(rank == 0) printf("LABELLING...\n");
     double start = MPI_Wtime();
+    double start_time = omp_get_wtime();
 	label(blockRows, rank, rowsPerRank, width, height);
 	
 
@@ -270,18 +270,22 @@ int main(int argc, char **argv) {
         printf("Time elapsed (total):     %.6f ms\n",(stop_total-start_total)*1000.0);
     }
 
-	if(rank == 0) {
-		//imageToBitmap(binaryImage,&bitmap);
-		//binaryToBitmap(binaryImage,bitmap);
-		copyBitmapToBMP(bitmap,&output);
-		//binaryToBitmap(binaryImage,&bitmap);
-		//copyBitmapToBMP(&bitmap,&output);
-		//HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
-		//DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
-		output.WriteToFile("out.bmp");
-		//bitmap.display_and_exit((void (*)(void*))anim_exit);
-		delete[] binaryImage;
-	}
+    
+    double end_time = omp_get_wtime();
+    printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
+
+    if(rank == 0) {
+	    //imageToBitmap(binaryImage,&bitmap);
+	    //binaryToBitmap(binaryImage,bitmap);
+	    copyBitmapToBMP(bitmap,&output);
+	    //binaryToBitmap(binaryImage,&bitmap);
+	    //copyBitmapToBMP(&bitmap,&output);
+	    //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
+	    //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
+	    output.WriteToFile("out.bmp");
+	    //bitmap.display_and_exit((void (*)(void*))anim_exit);
+	    delete[] binaryImage;
+    }
 
 	// clean up memory
 	delete[] dims;

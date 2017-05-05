@@ -259,7 +259,7 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height) {
     cudaEventSynchronize(stop);
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Time elapsed (gpu): %.6f ms\n",milliseconds);
+    printf("Time elapsed (gpu):   %.6f ms\n",milliseconds);
 
     cudaErrorCheck(cudaMemcpyFromArray(image, gpuImage, 0, 0,width*height*sizeof(int), cudaMemcpyDeviceToHost));
     // apparently you don't have to unbind surfaces.
