@@ -1,56 +1,6 @@
 #include "common_ccl.h"
 #include <mpi.h>
 
-int commSize;
-
-class UF {
-    int *id;
-public:
-    // Create an empty union find data structure with N isolated sets.
-    UF(int N) {
-        id = new int[N];
-        for (int i = 0; i<N; i++) {
-            id[i] = i;
-        }
-    }
-
-    ~UF() { 
-        delete[] id; 
-    }
-
-    // Return the id of component corresponding to object p.
-    int find(int p) {
-        int root = p;
-        while (root != id[root])
-            root = id[root];
-        while (p != root) { 
-            int newp = id[p];
-            id[p] = root;
-            p = newp;
-        }
-        return root;
-    }
-    
-    // Replace sets containing x and y with their union.
-    void merge(int x, int y) {
-        int i = find(x);
-        int j = find(y);
-        if (i == j) return;
-        //printf("(a=%d) %d equivalent to (b=%d) %d\n",x,i,y,j);
-        // make smaller label priority
-        if (j < i) {
-            id[i] = j;
-        } else { 
-            id[j] = i;
-        }
-    }
-    
-    // Are objects x and y in the same set?
-    bool connected(int x, int y) { 
-        return find(x) == find(y);
-    }
-};
-
 void colourise(int* input, CPUBitmap* output, int width, int height) {
 	unsigned char *rgbaPixels = output->get_ptr();
 	for(int y = 0; y < height; y++) {
@@ -75,57 +25,151 @@ void colourise(int* input, CPUBitmap* output, int width, int height) {
 }
 
 void initial_labels(int* blockRows, int rank, int rowsPerRank, int width, int height) {
-    // STEP 1 - Initial Labelling
-    int startLabel = rank*rowsPerRank*width+1;
-	int endIndex = rowsPerRank;
-	for(int i = 0; i < endIndex; i++) {
-		// +1 to avoid 0 labels
-		//blockRows[i*n
+    // Initial Labelling
+    int idx;
+	for(int y = 0; y < rowsPerRank && (y+rank*rowsPerRank) < height; y++) {
+        for(int x = 0; x < width; x++) {
+            idx = y*width+x;
+            if(blockRows[idx] > 0) {
+		        // +1 to avoid 0 labels
+		        blockRows[idx] = idx+1;
+            }
+            
+        }
+    }
+}
+// Return the root label of pixel p
+int find(int p, int* blockRows) {
+    //printf("Looking for root label of label %d...\n",p);
+    int root = p;
+    while (root != blockRows[root-1])
+        root = blockRows[root-1];
+    //printf("root = %d\n",root);
+    while (p != root) { 
+        int newp = blockRows[p-1];
+        blockRows[p-1] = root;
+        p = newp;
+    }
+    return root;
+}
+    
+// Replace sets containing x and y with their union.
+void merge(int a, int b, int* blockRows) {
+    int i = find(a,blockRows);
+    int j = find(b,blockRows);
+    if (i == j) return;
+    //printf("(a=%d) %d equivalent to (b=%d) %d\n",a,i,b,j);
+    // make smaller label priority
+    if (j < i) {
+        blockRows[i-1] = j;
+    } else { 
+        blockRows[j-1] = i;
     }
 }
 
-void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
-	UF unionFind(rowsPerRank*width+1);
+#include <unistd.h>
 
+void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
+    /*if(rank == 1) {
+        sleep(1);
+    }*/
+    // initial labelling
+    //printf("Initial labelling before:\n");
+    //printMatrix(blockRows,width,rowsPerRank);
+    initial_labels(blockRows, rank, rowsPerRank, width, height);
+    //printf("Initial labelling after:\n");
+    //printMatrix(blockRows,width,rowsPerRank);*/
     int offset = rank*rowsPerRank*width;
 
-    // initial labelling
+    // union equivalent regions
 	for(int y = 0; y < rowsPerRank && y+rowsPerRank*rank < height; y++) {
 		for(int x = 0; x < width; x++) {
 			// ignore background pixel
 			if(blockRows[y*width+x] > 0) {
 			    // check neighbour mask
 			    int n=0,nw=0,ne=0,w=0,label=0;
-                // global label
                 label = y*width+x+1;
 			    if(x > 0) {
 				    w = blockRows[y*width+x-1];
-                    unionFind.merge(label,y*width+x-1+1);
+                    if(w != 0)
+                        merge(label,w,blockRows);
 			    }
 			    if(y > 0) {
 				    n = blockRows[(y-1)*width+x];
-                    unionFind.merge(label,(y-1)*width+x+1);
+                    if(n != 0)
+                        merge(label,n,blockRows);
 			    }
 			    if(y > 0 && x > 0) {
 				    nw = blockRows[(y-1)*width+(x-1)];
-                    unionFind.merge(label,(y-1)*width+(x-1)+1);
+                    if(nw != 0)
+                        merge(label,nw,blockRows);
 			    }
 			    if(y > 0 && x < (width-1)) {
 				    ne = blockRows[(y-1)*width+(x+1)];
-                    unionFind.merge(label,(y-1)*width+(x+1)+1);
+                    if(ne != 0)
+                        merge(label,ne,blockRows);
 			    }
 			    //image[y*width+x] = label;
             }
 		}
 	}
 
-    // initial labelling
+    // local labelling
 	for(int y = 0; y < rowsPerRank && y+rowsPerRank*rank < height; y++) {
 		for(int x = 0; x < width; x++) {
             if(blockRows[y*width+x] > 0)
-    			blockRows[y*width+x] = unionFind.find(y*width+x+1);
+    			blockRows[y*width+x] = find(blockRows[y*width+x],blockRows);
 		}
 	}
+    // global labelling
+    for(int y = 0; y < rowsPerRank && y+rowsPerRank*rank < height; y++) {
+		for(int x = 0; x < width; x++) {
+            if(blockRows[y*width+x] > 0)
+    			blockRows[y*width+x] += offset;
+		}
+	}
+}
+
+void merge(int* unionImage, int rowsPerRank, int processes, int width, int height) {
+    // union equivalent regions
+    for(int rank = 1; rank < processes; rank++) {
+        // look at row connecting adjacent region
+        int y = rank*rowsPerRank;
+        //printf("Checking row %d for rank %d\n",y,rank);
+        for(int x = 0; x < width; x++) {
+			// ignore background pixel
+			if(unionImage[y*width+x] > 0) {
+			    // check lower row
+			    int n=0,nw=0,ne=0,label=0;
+                label = y*width+x+1;
+			    if(y > 0) {
+				    n = unionImage[(y-1)*width+x];
+                    if(n != 0)
+                        merge(label,n,unionImage);
+			    }
+			    if(y > 0 && x > 0) {
+				    nw = unionImage[(y-1)*width+(x-1)];
+                    if(nw != 0)
+                        merge(label,nw,unionImage);
+			    }
+			    if(y > 0 && x < (width-1)) {
+				    ne = unionImage[(y-1)*width+(x+1)];
+                    if(ne != 0)
+                        merge(label,ne,unionImage);
+			    }
+			    //image[y*width+x] = label;
+            }
+		}
+    }
+
+    // final labelling
+	for(int y = 0; y < height; y++) {
+		for(int x = 0; x < width; x++) {
+            if(unionImage[y*width+x] > 0)
+    			unionImage[y*width+x] = find(unionImage[y*width+x],unionImage);
+		}
+	}
+
 }
 
 int main(int argc, char **argv) {
@@ -145,7 +189,7 @@ int main(int argc, char **argv) {
 		printf("%s Starting...\n\n", argv[0]);
 
 		//source and results image filenames
-		char SampleImageFname[] = "3pixeldeath.bmp";
+		char SampleImageFname[] = "hamlet/f0001.bmp";
 		char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
 		if (pSampleImageFpath == NULL) {
@@ -173,8 +217,6 @@ int main(int argc, char **argv) {
 		
 		bitmap = new CPUBitmap( width, height, &data );
 		data.bitmap = bitmap;
-		//HANDLE_ERROR( cudaEventCreate( &data.start ) );
-		//HANDLE_ERROR( cudaEventCreate( &data.stop ) );
 		copyBMPtoBitmap(&input,bitmap);
 		binaryImage = new int[width*height];
 		bitmapToBinary(bitmap,binaryImage);
@@ -218,34 +260,27 @@ int main(int argc, char **argv) {
         printf("Received on rank %d, %d elements over %d rows:\n",rank,sendcounts[rank],rowsPerRank);
         printMatrix(blockRows,width,rowsPerRank);
     }*/
-    /*printf("LABELLING...\n");
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-
-   	// double start_time = omp_get_wtime();
-    gpu_label(binaryImage,&bitmap,width,height);
-
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("FINISHED...\n");
-    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
-    printf("Time elapsed (total): %.6f ms\n",milliseconds);*/
+    if(rank == 0) {
+        //printMatrix(binaryImage, width, height);
+    }
 
 	if(rank == 0) printf("LABELLING...\n");
     double start = MPI_Wtime();
 	label(blockRows, rank, rowsPerRank, width, height);
 	
-
 	// gather row blocks (gatherv because last rank may have slack)
 	MPI_Gatherv(blockRows, sendcounts[rank], MPI_INT, binaryImage, sendcounts, displs, MPI_INT, 0, MPI_COMM_WORLD);
 
+    if(rank == 0) {
+        //printMatrix(binaryImage, width, height);
+    }
+
     // resolve final labels
-    // TODO
+    if(rank == 0) {
+        //printf("MERGING FINAL IMAGE...\n");
+        merge(binaryImage, rowsPerRank, processes, width, height);
+    }
 
     if(rank == 0) {
         //printMatrix(binaryImage, width, height);

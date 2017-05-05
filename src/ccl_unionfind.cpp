@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 		printf("%s Starting...\n\n", argv[0]);
 
 		//source and results image filenames
-		char SampleImageFname[] = "test.bmp";
+		char SampleImageFname[] = "curve.bmp";
 		char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
 		if (pSampleImageFpath == NULL) {

@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
     findCudaDevice(argc, (const char **)argv);
 
     //source and results image filenames
-    char SampleImageFname[] = "3pixeldeath.bmp";
+    char SampleImageFname[] = "curve.bmp";
     char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
     if (pSampleImageFpath == NULL) {
