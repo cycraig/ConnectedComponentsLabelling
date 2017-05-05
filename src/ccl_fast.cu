@@ -3,8 +3,8 @@
 #include "../inc/helper_cuda.h"
 #include "common_ccl.h"
 
-int regionWidth = 13;
-int regionHeight = 13;
+int regionWidth = 8;
+int regionHeight = 8;
 int total_index;
 
 void colourise(int* input, CPUBitmap* output, int width, int height, int** labelColours) {
@@ -350,6 +350,12 @@ void updateRegionToGlobalLabels(int* image, int width, int height, int region, i
 }
 
 void fast_label(int* image, CPUBitmap* output, int width, int height) {
+
+	cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+
     // Step 1
     //printf("Step 1...\n");
     total_index = 0;
@@ -379,6 +385,21 @@ void fast_label(int* image, CPUBitmap* output, int width, int height) {
 
 	//printf("AFTER:\n");
 	//printLabels(image,width,height);
+
+	// clean up memory
+    for(int i = 0; i < numRegions; i++) {
+        delete[] label_list[i];
+    }
+    delete[] label_list;
+
+	//double end_time = omp_get_wtime();
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("FINISHED...\n");
+    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
+    printf("Time elapsed (total): %.6f ms\n",milliseconds);
 	
     // Colourise
 	int** labelColours = new int*[total_index+1];
@@ -387,10 +408,6 @@ void fast_label(int* image, CPUBitmap* output, int width, int height) {
 	colourise(image,output,width,height,labelColours);
 
     // clean up memory
-    for(int i = 0; i < numRegions; i++) {
-        delete[] label_list[i];
-    }
-    delete[] label_list;
     delete[] label_count;
 	for(int i = 1; i < total_index+1; i++) 
         delete []labelColours[i];
@@ -446,21 +463,9 @@ int main(int argc, char **argv) {
 
     printf("LABELLING...\n");
     //double start_time = omp_get_wtime();
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    
 
     fast_label(binaryImage,&bitmap,width,height);
-
-    //double end_time = omp_get_wtime();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("FINISHED...\n");
-    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
-    printf("Time elapsed (total): %.6f ms\n",milliseconds);
 
     //printf("PIXEL (99,77) = %d\n",binaryImage[77*width+99]);
     //printf("PIXEL (98,78) = %d\n",binaryImage[78*width+98]);

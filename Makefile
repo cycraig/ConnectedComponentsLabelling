@@ -1,4 +1,4 @@
-CFLAGS=-O3
+CFLAGS=-O3 
 NVCCFLAGS= -Wno-deprecated-gpu-targets
 NVCCFLAGS += -Xcompiler -fopenmp
 LDFLAGS= -lglut -lGL -lGLU -lgomp

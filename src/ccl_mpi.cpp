@@ -4,11 +4,10 @@
 int commSize;
 
 class UF {
-    int *id, cnt;
+    int *id;
 public:
     // Create an empty union find data structure with N isolated sets.
     UF(int N) {
-        cnt = N;
         id = new int[N];
         for (int i = 0; i<N; i++) {
             id[i] = i;
@@ -44,17 +43,11 @@ public:
         } else { 
             id[j] = i;
         }
-        cnt--;
     }
     
     // Are objects x and y in the same set?
     bool connected(int x, int y) { 
         return find(x) == find(y);
-    }
-    
-    // Return the number of disjoint sets.
-    int count() { 
-        return cnt;
     }
 };
 
@@ -70,9 +63,12 @@ void colourise(int* input, CPUBitmap* output, int width, int height) {
 				rgbaPixels[y*4*width+4*x+3] = 255;
 				continue;
 			}
-			rgbaPixels[y*4*width+4*x]   = input[y*width+x] * 131 % 255;
-			rgbaPixels[y*4*width+4*x+1] = input[y*width+x] * 241 % 255;
-			rgbaPixels[y*4*width+4*x+2] = input[y*width+x] * 251 % 255;
+			/*rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 255;
+			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 255;
+			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 255;*/
+            rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 177 + (input[y*width+x] * 131) % 78+1;
+			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 56 + (input[y*width+x] * 241) % 199+1;
+			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 237  + (input[y*width+x] * 241) % 18+1;
 			rgbaPixels[y*4*width+4*x+3] = 255;
 		}
 	}
@@ -255,12 +251,6 @@ int main(int argc, char **argv) {
         //printMatrix(binaryImage, width, height);
     }
     
-    if(rank == 0) {
-        //Colourise
-        printf("Colouring image...\n");
-        colourise(binaryImage,bitmap,width,height);
-        printf("Done colouring...\n");
-    }
     double stop = MPI_Wtime();
 
     double stop_total = MPI_Wtime();
@@ -268,6 +258,13 @@ int main(int argc, char **argv) {
         printf("FINISHED...\n");
         printf("Time elapsed (labelling): %.6f ms\n",(stop-start)*1000.0);
         printf("Time elapsed (total):     %.6f ms\n",(stop_total-start_total)*1000.0);
+    }
+
+    if(rank == 0) {
+        //Colourise
+        printf("Colouring image...\n");
+        colourise(binaryImage,bitmap,width,height);
+        printf("Done colouring...\n");
     }
 
 	if(rank == 0) {

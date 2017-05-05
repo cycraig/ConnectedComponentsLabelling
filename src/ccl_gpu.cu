@@ -264,9 +264,6 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height) {
     cudaErrorCheck(cudaMemcpyFromArray(image, gpuImage, 0, 0,width*height*sizeof(int), cudaMemcpyDeviceToHost));
     // apparently you don't have to unbind surfaces.
     cudaErrorCheck(cudaFreeArray(gpuImage));
-    
-    //Colourise
-    colourise(image,output,width,height);
 }
 
 int main(int argc, char **argv) {
@@ -328,6 +325,9 @@ int main(int argc, char **argv) {
     printf("FINISHED...\n");
     //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
     printf("Time elapsed (total): %.6f ms\n",milliseconds);
+
+	//Colourise
+    colourise(binaryImage,&bitmap,width,height);
 
     copyBitmapToBMP(&bitmap,&output);
     //binaryToBitmap(binaryImage,&bitmap);
