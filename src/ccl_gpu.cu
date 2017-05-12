@@ -31,9 +31,12 @@ void colourise(int* input, CPUBitmap* output, int width, int height) {
 				rgbaPixels[y*4*width+4*x+3] = 255;
 				continue;
 			}
-			rgbaPixels[y*4*width+4*x]   = input[y*width+x] * 131 % 255;
-			rgbaPixels[y*4*width+4*x+1] = input[y*width+x] * 241 % 255;
-			rgbaPixels[y*4*width+4*x+2] = input[y*width+x] * 251 % 255;
+			/*rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 255;
+			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 255;
+			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 255;*/
+			rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 177 + (input[y*width+x] * 131) % 78+1;
+			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 56 + (input[y*width+x] * 241) % 199+1;
+			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 237  + (input[y*width+x] * 241) % 18+1;
 			rgbaPixels[y*4*width+4*x+3] = 255;
 		}
 	}
@@ -273,7 +276,7 @@ int main(int argc, char **argv) {
     findCudaDevice(argc, (const char **)argv);
 
     //source and results image filenames
-    char SampleImageFname[] = "curve.bmp";
+    char SampleImageFname[] = "f0001.bmp";
     char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
     if (pSampleImageFpath == NULL) {
