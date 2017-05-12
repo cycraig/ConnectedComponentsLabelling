@@ -8,8 +8,10 @@
 #include "EasyBMP.h"
 #include <argp.h> //Part of GNU, for argument parsing
 #include <stdbool.h> //For bool
-#include <string.h> //For strcmp()
+#include <string.h> //For strcmp(), strcat()
 #include <stdlib.h> //For atoi()
+#include <time.h> // For seeding srand()
+#include <stdlib.h> //For srand(), rand()
 
 // globals needed by the update routine
 struct DataBlock {
@@ -17,6 +19,19 @@ struct DataBlock {
     CPUBitmap  *bitmap;
 };
 
+//For argument handling
+typedef enum {NORMAL_MODE, RANDOM_MODE} image_mode_t;
+struct arguments {
+    image_mode_t mode;
+		char* filename;
+		bool bench;
+		bool visualise;
+		int width;
+};
+static error_t parse_opt(int key, char *arg, struct argp_state *state);
+bool get_args(int argc, char** argv, struct arguments* parsed_args);
+
+void makeRandomBMP(BMP* output, int width, int height);
 void copyBMPtoBitmap(BMP* input, CPUBitmap* output);
 void copyBitmapToBMP(CPUBitmap* input, BMP* output);
 void printMatrix(int* matrix, int width, int height);
