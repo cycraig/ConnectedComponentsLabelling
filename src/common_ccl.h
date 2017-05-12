@@ -1,11 +1,15 @@
 #ifndef COMMON_CCL_H
 #define COMMON_CCL_H
 
-#include <cstring> 
+#include <cstring>
 #include <cmath>
 #include "../inc/helper_functions.h"    // includes cuda.h and cuda_runtime_api.h
-#include "../inc/cpu_bitmap.h" 
+#include "../inc/cpu_bitmap.h"
 #include "EasyBMP.h"
+#include <argp.h> //Part of GNU, for argument parsing
+#include <stdbool.h> //For bool
+#include <string.h> //For strcmp()
+#include <stdlib.h> //For atoi()
 
 // globals needed by the update routine
 struct DataBlock {
