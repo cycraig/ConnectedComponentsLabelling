@@ -157,14 +157,14 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 
-		printf("%s Starting...\n\n", argv[0]);
+		fprintf(stderr,"%s Starting...\n\n", argv[0]);
 
 		//source and results image filenames
 		char SampleImageFname[] = "f0001.bmp";
 		char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
 		if (pSampleImageFpath == NULL) {
-			printf("%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
+			fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
 			MPI_Finalize();
 			exit(EXIT_FAILURE);
 	    }
@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
     //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
     printf("Time elapsed (total): %.6f ms\n",milliseconds);*/
 
-	if(rank == 0) printf("LABELLING...\n");
+	if(rank == 0) fprintf(stderr,"LABELLING...\n");
     double start = MPI_Wtime();
     double start_time = omp_get_wtime();
 	label(blockRows, rank, rowsPerRank, width, height);
@@ -297,9 +297,9 @@ int main(int argc, char **argv) {
 
     if(rank == 0) {
         //Colourise
-        printf("Colouring image...\n");
+        fprintf(stderr,"Colouring image...\n");
         colourise(binaryImage,bitmap,width,height);
-        printf("Done colouring...\n");
+        fprintf(stderr,"Done colouring...\n");
     }
 
     if(rank == 0) {
