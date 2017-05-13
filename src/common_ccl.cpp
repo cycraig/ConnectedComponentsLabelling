@@ -74,6 +74,11 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 		return false;
 	}
 
+  if ((parsed_args->width == -1)&&(parsed_args->mode == RANDOM_MODE)) {
+		fprintf(stderr,"Must provide -w, when -m is set to random (Try --help).\n");
+		return false;
+	}
+
 	return true;
 }
 /***********END OF ARGUMENT HANDLING************/

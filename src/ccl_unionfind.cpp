@@ -15,8 +15,8 @@ public:
         }
     }
 
-    ~UF() { 
-        delete[] id; 
+    ~UF() {
+        delete[] id;
     }
 
     // Return the id of component corresponding to object p.
@@ -24,14 +24,14 @@ public:
         int root = p;
         while (root != id[root])
             root = id[root];
-        while (p != root) { 
+        while (p != root) {
             int newp = id[p];
             id[p] = root;
             p = newp;
         }
         return root;
     }
-    
+
     // Replace sets containing x and y with their union.
     void merge(int x, int y) {
         int i = find(x);
@@ -41,13 +41,13 @@ public:
         // make smaller label priority
         if (j < i) {
             id[i] = j;
-        } else { 
+        } else {
             id[j] = i;
         }
     }
-    
+
     // Are objects x and y in the same set?
-    bool connected(int x, int y) { 
+    bool connected(int x, int y) {
         return find(x) == find(y);
     }
 };
@@ -91,7 +91,7 @@ void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
     int offset = rank*rowsPerRank*width;
 
     // marking equivalences
-	
+
 	for(int y = 0; y < rowsPerRank && y+rowsPerRank*rank < height; y++) {
 		for(int x = 0; x < width; x++) {
 			// ignore background pixel
@@ -102,7 +102,7 @@ void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
                 label = y*width+x+1;
 			    if(x > 0) {
 				    w = blockRows[y*width+x-1];
-					if(w != 0) 
+					if(w != 0)
 	                    unionFind.merge(label,y*width+x-1+1);
 			    }
 			    if(y > 0) {
@@ -136,18 +136,27 @@ void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
 
 int main(int argc, char **argv) {
 	int rank, processes;
-	
+
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &processes);
-	
+
 	int width, height;
 	int* dims = new int[2];
 	int* binaryImage;
 	CPUBitmap *bitmap;
 	DataBlock data;
 	BMP output;
+  struct arguments parsed_args;
 	if(rank == 0) {
+    //Suppress EasyBMP warnings, as they go to stdout and are silly.
+		SetEasyBMPwarningsOff();
+		//Get arguments, parsed results are in struct parsed_args.
+		if (!get_args(argc, argv, &parsed_args)) {
+			MPI_Finalize();
+			exit(EXIT_FAILURE);
+		}
+
 		printf("%s Starting...\n\n", argv[0]);
 
 		//source and results image filenames
@@ -160,30 +169,43 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 	    }
 
-		BMP input;
+      BMP input;
+  		int width, height;
+  		if (parsed_args.mode == NORMAL_MODE) {
+  			//source and results image filenames
+  			char *SampleImageFname = parsed_args.filename;
 
-		printf("===============================================\n");
-		printf("Loading image: %s...\n", pSampleImageFpath);
-		bool result = input.ReadFromFile(pSampleImageFpath);
-		if (result == false) {
-		    printf("\nError: Image file not found or invalid!\n");
-			MPI_Finalize();
-		    exit(EXIT_FAILURE);
-		}
-		printf("===============================================\n");
+  			char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
-		width = input.TellWidth();
-		height = input.TellHeight();
-		output.SetSize(width,height);
-		output.SetBitDepth(32); // RGBA
-		
-		bitmap = new CPUBitmap( width, height, &data );
-		data.bitmap = bitmap;
-		//HANDLE_ERROR( cudaEventCreate( &data.start ) );
-		//HANDLE_ERROR( cudaEventCreate( &data.stop ) );
-		copyBMPtoBitmap(&input,bitmap);
-		binaryImage = new int[width*height];
-		bitmapToBinary(bitmap,binaryImage);
+  			if (pSampleImageFpath == NULL) {
+  				fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
+  				MPI_Finalize();
+  				exit(EXIT_FAILURE);
+  		    }
+
+  			fprintf(stderr,"===============================================\n");
+  			fprintf(stderr,"Loading image: %s...\n", pSampleImageFpath);
+  			bool result = input.ReadFromFile(pSampleImageFpath);
+  			if (result == false) {
+  			    fprintf(stderr,"\nError: Image file not found or invalid!\n");
+  				MPI_Finalize();
+  			    exit(EXIT_FAILURE);
+  			}
+  			fprintf(stderr,"===============================================\n");
+  		}
+  		else {
+  			makeRandomBMP(&input,parsed_args.width,parsed_args.width);
+  		}
+  		width = input.TellWidth();
+  		height = input.TellHeight();
+  		output.SetSize(width,height);
+  		output.SetBitDepth(32); // RGBA
+
+  		bitmap = new CPUBitmap( width, height, &data );
+  		data.bitmap = bitmap;
+  		copyBMPtoBitmap(&input,bitmap);
+  		binaryImage = new int[width*height];
+  		bitmapToBinary(bitmap,binaryImage);
 
 		dims[0] = width;
 		dims[1] = height;
@@ -214,7 +236,7 @@ int main(int argc, char **argv) {
 		displs[i] = i*rowsPerRank*width;
 	}
 	MPI_Scatterv(binaryImage, sendcounts, displs, MPI_INT, blockRows, sendcounts[rank], MPI_INT, 0, MPI_COMM_WORLD);
-	
+
     /*if(rank == 0) {
         printf("Received on rank %d, %d elements over %d rows\n",rank,sendcounts[rank],rowsPerRank);
         printMatrix(blockRows,width,rowsPerRank);
@@ -246,7 +268,7 @@ int main(int argc, char **argv) {
     double start = MPI_Wtime();
     double start_time = omp_get_wtime();
 	label(blockRows, rank, rowsPerRank, width, height);
-	
+
 
 	// gather row blocks (gatherv because last rank may have slack)
 	MPI_Gatherv(blockRows, sendcounts[rank], MPI_INT, binaryImage, sendcounts, displs, MPI_INT, 0, MPI_COMM_WORLD);
@@ -257,38 +279,47 @@ int main(int argc, char **argv) {
     if(rank == 0) {
         //printMatrix(binaryImage, width, height);
     }
-    
+
+    double stop = MPI_Wtime();
+
+    double stop_total = MPI_Wtime();
+    if(rank == 0) {
+      if (!parsed_args.bench) {
+        printf("Time elapsed (labelling): %.6f ms\n",(stop-start)*1000.0);
+        printf("Time elapsed (total):     %.6f ms\n",(stop_total-start_total)*1000.0);
+      }
+      else {
+        printf("%s,%d,%d,%f,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
+         width, height,
+         (stop-start)*1000.0,(stop_total-start_total)*1000.0);
+      }
+    }
+
     if(rank == 0) {
         //Colourise
         printf("Colouring image...\n");
         colourise(binaryImage,bitmap,width,height);
         printf("Done colouring...\n");
     }
-    double stop = MPI_Wtime();
-
-    double stop_total = MPI_Wtime();
-    if(rank == 0) {
-        printf("FINISHED...\n");
-        printf("Time elapsed (labelling): %.6f ms\n",(stop-start)*1000.0);
-        printf("Time elapsed (total):     %.6f ms\n",(stop_total-start_total)*1000.0);
-    }
-
-    
-    double end_time = omp_get_wtime();
-    printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
 
     if(rank == 0) {
-	    //imageToBitmap(binaryImage,&bitmap);
-	    //binaryToBitmap(binaryImage,bitmap);
-	    copyBitmapToBMP(bitmap,&output);
-	    //binaryToBitmap(binaryImage,&bitmap);
-	    //copyBitmapToBMP(&bitmap,&output);
-	    //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
-	    //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
-	    output.WriteToFile("out.bmp");
-	    //bitmap.display_and_exit((void (*)(void*))anim_exit);
-	    delete[] binaryImage;
-    }
+  		//imageToBitmap(binaryImage,&bitmap);
+  		//binaryToBitmap(binaryImage,bitmap);
+  		copyBitmapToBMP(bitmap,&output);
+  		//binaryToBitmap(binaryImage,&bitmap);
+  		//copyBitmapToBMP(&bitmap,&output);
+  		//HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
+  		//DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
+  		char outname [255];
+  		if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl-unionfind.bmp",parsed_args.filename);
+  		else sprintf(outname,"random-%dx%d-ccl-unionfind.bmp",width,height);
+  		output.WriteToFile(outname);
+  		//bitmap.display_and_exit((void (*)(void*))anim_exit);
+  		if (parsed_args.visualise) {
+  			bitmap->display_and_exit((void (*)(void*))anim_exit);
+  		}
+  		delete[] binaryImage;
+  	}
 
 	// clean up memory
 	delete[] dims;
@@ -298,4 +329,3 @@ int main(int argc, char **argv) {
 
 	MPI_Finalize();
 }
-
