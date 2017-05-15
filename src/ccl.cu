@@ -32,7 +32,7 @@ void colourise(int* input, CPUBitmap* output, int** labelColours) {
 void label(int* region, CPUBitmap* output, int width, int height) {
 	// assume maximum number of labels
 	int size = width*height/2.0+1;
-	
+
 	int** equivalenceMatrix = new int*[size];
 	for(int i = 0; i < size; i++) {
 		equivalenceMatrix[i] = new int[size];
@@ -46,7 +46,7 @@ void label(int* region, CPUBitmap* output, int width, int height) {
 	// initial labelling
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
-			
+
 			// ignore background pixel
 			if(region[y*width+x] == 0) continue;
 
@@ -97,7 +97,7 @@ void label(int* region, CPUBitmap* output, int width, int height) {
 	updateRegion(region,labelArray,width,height);
 	//printf("AFTER:\n");
 	//printLabels(region,width,height);
-	
+
 	int** labelColours = new int*[labelCount+1];
 	for(int i = 1; i < labelCount+1; i++) labelColours[i] = new int[3];
 	getLabelColours(labelColours,labelCount);
@@ -108,75 +108,111 @@ void label(int* region, CPUBitmap* output, int width, int height) {
 		delete []equivalenceMatrix[i];
     delete []equivalenceMatrix;
     delete []labelArray;
-	for(int i = 1; i < labelCount+1; i++) 
+	for(int i = 1; i < labelCount+1; i++)
         delete []labelColours[i];
     delete []labelColours;
 }
 
 int main(int argc, char **argv) {
-    printf("%s Starting...\n\n", argv[0]);
+	int width, height;
+	int* binaryImage;
+	CPUBitmap *bitmap;
+	DataBlock data;
+	BMP output;
+	struct arguments parsed_args;
 
-    //initialize CUDA
-    findCudaDevice(argc, (const char **)argv);
+	//initialize CUDA - outputs to stdout
+	//findCudaDevice(argc, (const char **)argv);
 
-    //source and results image filenames
-    char SampleImageFname[] = "3pixeldeath.bmp";
-    char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
+		//Suppress EasyBMP warnings, as they go to stdout and are silly.
+		SetEasyBMPwarningsOff();
+		//Get arguments, parsed results are in struct parsed_args.
+		if (!get_args(argc, argv, &parsed_args)) {
+			exit(EXIT_FAILURE);
+		}
 
-    if (pSampleImageFpath == NULL) {
-        printf("%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
-        exit(EXIT_FAILURE);
-    }
+		fprintf(stderr,"%s Starting...\n\n", argv[0]);
+			BMP input;
+			if (parsed_args.mode == NORMAL_MODE) {
+				//source and results image filenames
+				char *SampleImageFname = parsed_args.filename;
 
-    BMP input;
-    BMP output;
+				char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
-	printf("===================================\n");
-    printf("Loading image: %s... \n", pSampleImageFpath);
-    bool result = input.ReadFromFile(pSampleImageFpath);
-	if (result == false) {
-        printf("\nError: Image file not found or invalid!\n");
-        exit(EXIT_FAILURE);
-        return 1;
-    }
-    printf("===================================\n");
+				if (pSampleImageFpath == NULL) {
+					fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
+					exit(EXIT_FAILURE);
+					}
 
-	int width = input.TellWidth();
-	int height = input.TellHeight();
-	output.SetSize(width,height);
-	output.SetBitDepth(32); // RGBA
-    DataBlock   data;
-    CPUBitmap bitmap( width, height, &data );
-    data.bitmap = &bitmap;
-    //HANDLE_ERROR( cudaEventCreate( &data.start ) );
-    //HANDLE_ERROR( cudaEventCreate( &data.stop ) );
-    copyBMPtoBitmap(&input,&bitmap);
-    int* binaryImage = new int[width*height];
-    bitmapToBinary(&bitmap,binaryImage);
+				fprintf(stderr,"===============================================\n");
+				fprintf(stderr,"Loading image: %s...\n", pSampleImageFpath);
+				bool result = input.ReadFromFile(pSampleImageFpath);
+				if (result == false) {
+						fprintf(stderr,"\nError: Image file not found or invalid!\n");
+						exit(EXIT_FAILURE);
+				}
+				fprintf(stderr,"===============================================\n");
+			}
+			else {
+				makeRandomBMP(&input,parsed_args.width,parsed_args.width);
+			}
+			width = input.TellWidth();
+			height = input.TellHeight();
+			output.SetSize(width,height);
+			output.SetBitDepth(32); // RGBA
 
-    printf("LABELLING...\n");
+			bitmap = new CPUBitmap( width, height, &data );
+			data.bitmap = bitmap;
+			copyBMPtoBitmap(&input,bitmap);
+			binaryImage = new int[width*height];
+			bitmapToBinary(bitmap,binaryImage);
+
+		//printf("PIXEL (99,77) = %d\n",binaryImage[77*width+99]);
+		//printf("PIXEL (98,78) = %d\n",binaryImage[78*width+98]);
+		//printf("PIXEL (97,79) = %d\n",binaryImage[79*width+97]);
+
+
+		fprintf(stderr,"LABELLING...\n");
     //double start_time = omp_get_wtime();
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    label(binaryImage,&bitmap,width,height);
+    label(binaryImage,bitmap,width,height);
 
     //double end_time = omp_get_wtime();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("FINISHED...\n");
-    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
-    printf("Time elapsed (total): %.6f ms\n",milliseconds);
+    fprintf(stderr,"FINISHED...\n");
+		//printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
+		if (!parsed_args.bench) {
+			printf("Time elapsed (total): %.6f ms\n",milliseconds);
+		}
+		else {
+			printf("%s,%d,%d,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
+			 width, height,
+			 milliseconds);
+		}
 
-    copyBitmapToBMP(&bitmap,&output);
-    //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
-    //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
-    output.WriteToFile("out.bmp");
-    bitmap.display_and_exit((void (*)(void*))anim_exit);
-    delete[] binaryImage;
+		//printf("PIXEL (99,77) = %d\n",binaryImage[77*width+99]);
+		//printf("PIXEL (98,78) = %d\n",binaryImage[78*width+98]);
+		//printf("PIXEL (97,79) = %d\n",binaryImage[79*width+97]);
+
+		copyBitmapToBMP(bitmap,&output);
+		//binaryToBitmap(binaryImage,&bitmap);
+		//copyBitmapToBMP(&bitmap,&output);
+		//HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
+		//DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
+		char outname [255];
+		if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl.bmp",parsed_args.filename);
+		else sprintf(outname,"random-%dx%d-ccl.bmp",width,height);
+		output.WriteToFile(outname);
+		//bitmap.display_and_exit((void (*)(void*))anim_exit);
+		if (parsed_args.visualise) {
+			bitmap->display_and_exit((void (*)(void*))anim_exit);
+		}
+		delete[] binaryImage;
 }
-

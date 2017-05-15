@@ -5,7 +5,7 @@
 int commSize;
 
 class UF {
-    int *id;
+  int *id;
 public:
     // Create an empty union find data structure with N isolated sets.
     UF(int N) {
@@ -13,6 +13,16 @@ public:
         for (int i = 0; i<N; i++) {
             id[i] = i;
         }
+    }
+
+    //Overloaded constructor for setting labels straight
+    UF(int* in, int width, int height, int rowsPerRank) {
+      int labelsPerRank = rowsPerRank*width; // ceil
+      id = new int[width*height+1];
+      id[0]=0;
+      for (int i = 0; i<width*height; i++) {
+          id[i+1] = in[i]+(labelsPerRank*(i/labelsPerRank));
+      }
     }
 
     ~UF() {
@@ -134,6 +144,54 @@ void label(int* blockRows, int rank, int rowsPerRank, int width, int height) {
 	}
 }
 
+void merge_rows(int* blockRows, int processes, int rowsPerRank, int width, int height) {
+  UF unionFind(blockRows, width, height, rowsPerRank);
+  //update equivalencies using boundary rows
+  for (int i=1; i<processes; i++) {
+    int y = (i*rowsPerRank);
+    for(int x = 0; x < width; x++) {
+			// ignore background pixel
+			if(blockRows[y*width+x] > 0) {
+			    // check neighbour mask
+			    int n=0,nw=0,ne=0,w=0,label=0;
+          // local label
+          label = y*width+x+1;
+
+			    //if(x > 0) {
+				  //  w = blockRows[y*width+x-1];
+					//if(w != 0)
+	        //            unionFind.merge(label,y*width+x-1+1);
+			    //}
+			    if(y > 0) {
+				    n = blockRows[(y-1)*width+x];
+					if(n != 0)
+                   		unionFind.merge(label,(y-1)*width+x+1);
+			    }
+			    if(y > 0 && x > 0) {
+				    nw = blockRows[(y-1)*width+(x-1)];
+					if(nw != 0)
+                    	unionFind.merge(label,(y-1)*width+(x-1)+1);
+			    }
+			    if(y > 0 && x < (width-1)) {
+				    ne = blockRows[(y-1)*width+(x+1)];
+					if(ne != 0)
+                    	unionFind.merge(label,(y-1)*width+(x+1)+1);
+			    }
+			    //image[y*width+x] = label;
+      }
+		}
+  }
+
+// relabel
+  for(int y = rowsPerRank; y < height; y++) {
+    for(int x = 0; x < width; x++) {
+      if(blockRows[y*width+x] > 0)
+          blockRows[y*width+x] = unionFind.find(y*width+x+1);
+    }
+  }
+
+}
+
 int main(int argc, char **argv) {
 	int rank, processes;
 
@@ -158,19 +216,7 @@ int main(int argc, char **argv) {
 		}
 
 		fprintf(stderr,"%s Starting...\n\n", argv[0]);
-
-		//source and results image filenames
-		char SampleImageFname[] = "f0001.bmp";
-		char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
-
-		if (pSampleImageFpath == NULL) {
-			fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
-			MPI_Finalize();
-			exit(EXIT_FAILURE);
-	    }
-
       BMP input;
-  		int width, height;
   		if (parsed_args.mode == NORMAL_MODE) {
   			//source and results image filenames
   			char *SampleImageFname = parsed_args.filename;
@@ -188,7 +234,7 @@ int main(int argc, char **argv) {
   			bool result = input.ReadFromFile(pSampleImageFpath);
   			if (result == false) {
   			    fprintf(stderr,"\nError: Image file not found or invalid!\n");
-  				MPI_Finalize();
+  				  MPI_Finalize();
   			    exit(EXIT_FAILURE);
   			}
   			fprintf(stderr,"===============================================\n");
@@ -274,10 +320,10 @@ int main(int argc, char **argv) {
 	MPI_Gatherv(blockRows, sendcounts[rank], MPI_INT, binaryImage, sendcounts, displs, MPI_INT, 0, MPI_COMM_WORLD);
 
     // resolve final labels
-    // TODO
+    // TODO - !!!
 
     if(rank == 0) {
-        //printMatrix(binaryImage, width, height);
+        merge_rows(binaryImage, processes, rowsPerRank, width, height);
     }
 
     double stop = MPI_Wtime();

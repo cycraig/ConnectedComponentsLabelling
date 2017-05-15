@@ -43,7 +43,7 @@ void resolveEquivalence(int p, int q, int pregion, int qregion, int** label_list
         // step 2
         int small = min(index1,index2);
         int large = max(index1,index2);
-        
+
         for(int k = 0; k <= pregion; k++) {
             for(int j = 1; j <= label_count[k]; j++) {
                 if(label_list[k][j] > large) {
@@ -88,7 +88,7 @@ void merge_region(int* image, int width, int height, int region, int** label_lis
     if(p > 0) {
         // check 8-nbrs
         //printf("Checking merge neighbours for corner pixel at (x,y)=(%d,%d): %d\n",x,y,p);
-        
+
         // south-west
         qind = (y+1)*width+x-1;
         if(x > 0 && y < (height-1) && image[qind] > 0) {
@@ -120,7 +120,7 @@ void merge_region(int* image, int width, int height, int region, int** label_lis
             //printf("N  - Equivalent to (x,y)=(%d,%d) in region %d\n",x,y-1,qregion);
 			resolveEquivalence(p,image[qind],region,qregion,label_list,label_count);
 		}
-		
+
         // north-east
         qind = (y-1)*width+x+1;
 		if(y > 0 && x < (width-1) && image[qind] > 0) {
@@ -152,7 +152,7 @@ void merge_region(int* image, int width, int height, int region, int** label_lis
                 //printf("W  - Equivalent to (x,y)=(%d,%d) in region %d\n",x-1,y,qregion);
 			    resolveEquivalence(p,image[qind],region,qregion,label_list,label_count);
 		    }
-            
+
             // south-west
             qind = (y+1)*width+x-1;
             // don't check past bottom of region
@@ -186,7 +186,7 @@ void merge_region(int* image, int width, int height, int region, int** label_lis
                 //printf("N  - Equivalent to (x,y)=(%d,%d) in region %d\n",x,y-1,qregion);
 			    resolveEquivalence(p,image[qind],region,qregion,label_list,label_count);
 		    }
-		
+
             // north-east
             qind = (y-1)*width+x+1;
             // don't check past right of region
@@ -223,10 +223,10 @@ void printRegion(int* image,int width, int height, int region) {
 
 void label_region(int* image, int width, int height, int region, int** label_list, int* label_count) {
     // step i
-   
+
     // assume maximum number of labels
 	int size = regionWidth*regionHeight/2.0+1;
-	
+
     unsigned int regions_across = (width-1)/regionWidth+1;
     //unsigned int regions_down = (height-1)/regionHeight+1;
     unsigned int regionx = (region%regions_across);
@@ -244,12 +244,12 @@ void label_region(int* image, int width, int height, int region, int** label_lis
 
 	int labelCount = 0;
 
-    //printf("Region %d:\n startx = %d; starty = %d;\n",region,startx,starty); 
+    //printf("Region %d:\n startx = %d; starty = %d;\n",region,startx,starty);
 
 	// initial labelling
 	for(int y = starty; y < (regiony+1)*regionHeight && y < height; y++) {
 		for(int x = startx; x < (regionx+1)*regionWidth && x < width; x++) {
-			
+
 			// ignore background pixel
 			if(image[y*width+x] > 0) {
 
@@ -298,11 +298,11 @@ void label_region(int* image, int width, int height, int region, int** label_lis
     //printf("Label count for region %d = %d\n",region,labelCount);
     label_count[region] = labelCount;
     label_list[region] = new int[labelCount+1];
-    
+
     // step iii
     resolveEquivalences(equivalenceMatrix,labelCount);
 	updateLabelArray(label_list[region],equivalenceMatrix,labelCount);
-    
+
     // step iv
     int maxLabel = 0;
     for(int j = 1; j <= labelCount; j++) {
@@ -312,7 +312,7 @@ void label_region(int* image, int width, int height, int region, int** label_lis
 
     //printf("label_list[%d]:\n",region);
     //printArray(label_list[region],label_count[region]+1);
-    
+
     // step v
     total_index = total_index + maxLabel;
 
@@ -338,7 +338,7 @@ void updateRegionToGlobalLabels(int* image, int width, int height, int region, i
     unsigned int regiony = (region/regions_across);
     unsigned int startx = regionx*regionWidth;
     unsigned int starty = regiony*regionHeight;
-    
+
     for(int y = starty; y < height && y < (regiony+1)*regionHeight; y++) {
 		for(int x = startx; x < width && x < (regionx+1)*regionWidth; x++) {
 			int idx = y*width+x;
@@ -349,7 +349,7 @@ void updateRegionToGlobalLabels(int* image, int width, int height, int region, i
 	}
 }
 
-void fast_label(int* image, CPUBitmap* output, int width, int height) {
+void fast_label(int* image, CPUBitmap* output, int width, int height, float* timeTotal) {
 
 	cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -380,7 +380,7 @@ void fast_label(int* image, CPUBitmap* output, int width, int height) {
     for(int i = 0; i < numRegions; i++) {
         //printf("label_list[%d]:\n",i);
 	    //printArray(label_list[i],label_count[i]+1);
-        updateRegionToGlobalLabels(image,width,height,i,label_list);   
+        updateRegionToGlobalLabels(image,width,height,i,label_list);
     }
 
 	//printf("AFTER:\n");
@@ -395,12 +395,9 @@ void fast_label(int* image, CPUBitmap* output, int width, int height) {
 	//double end_time = omp_get_wtime();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("FINISHED...\n");
-    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
-    printf("Time elapsed (total): %.6f ms\n",milliseconds);
-	
+    *timeTotal = 0;
+    cudaEventElapsedTime(timeTotal, start, stop);
+
     // Colourise
 	int** labelColours = new int*[total_index+1];
 	for(int i = 1; i <= total_index; i++) labelColours[i] = new int[3];
@@ -409,75 +406,102 @@ void fast_label(int* image, CPUBitmap* output, int width, int height) {
 
     // clean up memory
     delete[] label_count;
-	for(int i = 1; i < total_index+1; i++) 
+	for(int i = 1; i < total_index+1; i++)
         delete []labelColours[i];
     delete []labelColours;
 }
 
 int main(int argc, char **argv) {
-    printf("%s Starting...\n\n", argv[0]);
+	int width, height;
+	int* binaryImage;
+	CPUBitmap *bitmap;
+	DataBlock data;
+	BMP output;
+	struct arguments parsed_args;
 
-    //initialize CUDA
-    findCudaDevice(argc, (const char **)argv);
+	//initialize CUDA - outputs to stdout
+	//findCudaDevice(argc, (const char **)argv);
 
-    //source and results image filenames
-    char SampleImageFname[] = "f0001.bmp";
-    char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
+		//Suppress EasyBMP warnings, as they go to stdout and are silly.
+		SetEasyBMPwarningsOff();
+		//Get arguments, parsed results are in struct parsed_args.
+		if (!get_args(argc, argv, &parsed_args)) {
+			exit(EXIT_FAILURE);
+		}
 
-    if (pSampleImageFpath == NULL) {
-        printf("%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
-        exit(EXIT_FAILURE);
-    }
+		fprintf(stderr,"%s Starting...\n\n", argv[0]);
+			BMP input;
+			if (parsed_args.mode == NORMAL_MODE) {
+				//source and results image filenames
+				char *SampleImageFname = parsed_args.filename;
 
-    BMP input;
-    BMP output;
+				char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
 
-	printf("===================================\n");
-    printf("Loading image: %s... \n", pSampleImageFpath);
-    bool result = input.ReadFromFile(pSampleImageFpath);
-	if (result == false) {
-        printf("\nError: Image file not found or invalid!\n");
-        exit(EXIT_FAILURE);
-        return 1;
-    }
-    printf("===================================\n");
+				if (pSampleImageFpath == NULL) {
+					fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
+					exit(EXIT_FAILURE);
+					}
 
+				fprintf(stderr,"===============================================\n");
+				fprintf(stderr,"Loading image: %s...\n", pSampleImageFpath);
+				bool result = input.ReadFromFile(pSampleImageFpath);
+				if (result == false) {
+						fprintf(stderr,"\nError: Image file not found or invalid!\n");
+						exit(EXIT_FAILURE);
+				}
+				fprintf(stderr,"===============================================\n");
+			}
+			else {
+				makeRandomBMP(&input,parsed_args.width,parsed_args.width);
+			}
+			width = input.TellWidth();
+			height = input.TellHeight();
+			output.SetSize(width,height);
+			output.SetBitDepth(32); // RGBA
 
-	int width = input.TellWidth();
-	int height = input.TellHeight();
-	output.SetSize(width,height);
-	output.SetBitDepth(32); // RGBA
-    DataBlock   data;
-    CPUBitmap bitmap( width, height, &data );
-    data.bitmap = &bitmap;
-    //HANDLE_ERROR( cudaEventCreate( &data.start ) );
-    //HANDLE_ERROR( cudaEventCreate( &data.stop ) );
-    copyBMPtoBitmap(&input,&bitmap);
-    int* binaryImage = new int[width*height];
-    bitmapToBinary(&bitmap,binaryImage);
+			bitmap = new CPUBitmap( width, height, &data );
+			data.bitmap = bitmap;
+			copyBMPtoBitmap(&input,bitmap);
+			binaryImage = new int[width*height];
+			bitmapToBinary(bitmap,binaryImage);
 
     //printf("PIXEL (99,77) = %d\n",binaryImage[77*width+99]);
     //printf("PIXEL (98,78) = %d\n",binaryImage[78*width+98]);
     //printf("PIXEL (97,79) = %d\n",binaryImage[79*width+97]);
-    
 
-    printf("LABELLING...\n");
+
+    fprintf(stderr,"LABELLING...\n");
     //double start_time = omp_get_wtime();
-    
 
-    fast_label(binaryImage,&bitmap,width,height);
+		float timeTotal;
+    fast_label(binaryImage,bitmap,width,height,&timeTotal);
+		fprintf(stderr,"FINISHED...\n");
+		//printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
+		if (!parsed_args.bench) {
+      printf("Time elapsed (total): %.6f ms\n",timeTotal);
+    }
+    else {
+      printf("%s,%d,%d,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
+       width, height,
+       timeTotal);
+    }
 
     //printf("PIXEL (99,77) = %d\n",binaryImage[77*width+99]);
     //printf("PIXEL (98,78) = %d\n",binaryImage[78*width+98]);
     //printf("PIXEL (97,79) = %d\n",binaryImage[79*width+97]);
 
-    copyBitmapToBMP(&bitmap,&output);
+    copyBitmapToBMP(bitmap,&output);
     //binaryToBitmap(binaryImage,&bitmap);
     //copyBitmapToBMP(&bitmap,&output);
     //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
     //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
-    output.WriteToFile("out.bmp");
-    bitmap.display_and_exit((void (*)(void*))anim_exit);
+		char outname [255];
+    if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl-fast.bmp",parsed_args.filename);
+    else sprintf(outname,"random-%dx%d-ccl-fast.bmp",width,height);
+    output.WriteToFile(outname);
+    //bitmap.display_and_exit((void (*)(void*))anim_exit);
+    if (parsed_args.visualise) {
+      bitmap->display_and_exit((void (*)(void*))anim_exit);
+    }
     delete[] binaryImage;
 }
-

@@ -196,9 +196,7 @@ int main(int argc, char **argv) {
 		}
 
 		fprintf(stderr,"%s Starting...\n\n", argv[0]);
-
 		BMP input;
-		int width, height;
 		if (parsed_args.mode == NORMAL_MODE) {
 			//source and results image filenames
 			char *SampleImageFname = parsed_args.filename;
