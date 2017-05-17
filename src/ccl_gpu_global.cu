@@ -16,29 +16,6 @@ int regionWidth = 32;
 int regionHeight = 32;
 int total_index;
 
-void colourise(int* input, CPUBitmap* output, int width, int height) {
-	unsigned char *rgbaPixels = output->get_ptr();
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			int label = input[y*width+x];
-			if(label == 0) {
-				rgbaPixels[y*4*width+4*x]   = 0;
-				rgbaPixels[y*4*width+4*x+1] = 0;
-				rgbaPixels[y*4*width+4*x+2] = 0;
-				rgbaPixels[y*4*width+4*x+3] = 255;
-				continue;
-			}
-			/*rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 255;
-			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 255;
-			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 255;*/
-			rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 177 + (input[y*width+x] * 131) % 78+1;
-			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 56 + (input[y*width+x] * 241) % 199+1;
-			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 237  + (input[y*width+x] * 241) % 18+1;
-			rgbaPixels[y*4*width+4*x+3] = 255;
-		}
-	}
-}
-
 __global__ void gpu_label(int width, int height, int* globalImage) {
     // STEP 1 - Initial Labelling
 
@@ -50,7 +27,7 @@ __global__ void gpu_label(int width, int height, int* globalImage) {
     if ((x<width) && (y<height)) {
 	temp = globalImage[x+y*width];
         if(temp != 0) {
-			globalImage[x+y*width] = idx; 
+			globalImage[x+y*width] = idx;
         }
         //printf("x = %d, y = %d, i = %d\n",x,y,idx);
 	}
@@ -272,58 +249,30 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuT
 }
 
 int main(int argc, char **argv) {
-    int width, height;
-    int* binaryImage;
-    CPUBitmap *bitmap;
-    DataBlock data;
-    BMP output;
-    struct arguments parsed_args;
+  int width, height;
+	int* dims = new int[2];
+	int* binaryImage;
+	CPUBitmap *bitmap;
+	DataBlock data;
+	BMP output;
+  BMP input;
+  struct arguments parsed_args;
 
-    //initialize CUDA - outputs to stdout
-    //findCudaDevice(argc, (const char **)argv);
+  if (!start(argc, argv,
+      width, height,
+      input,
+      parsed_args)) exit(EXIT_FAILURE);
 
-      //Suppress EasyBMP warnings, as they go to stdout and are silly.
-      SetEasyBMPwarningsOff();
-      //Get arguments, parsed results are in struct parsed_args.
-      if (!get_args(argc, argv, &parsed_args)) {
-        exit(EXIT_FAILURE);
-      }
+      regionWidth = parsed_args.region_width;
+      regionHeight = parsed_args.region_width;
 
-      fprintf(stderr,"%s Starting...\n\n", argv[0]);
-        BMP input;
-        if (parsed_args.mode == NORMAL_MODE) {
-          //source and results image filenames
-          char *SampleImageFname = parsed_args.filename;
-
-          char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
-
-          if (pSampleImageFpath == NULL) {
-            fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
-            exit(EXIT_FAILURE);
-            }
-
-          fprintf(stderr,"===============================================\n");
-          fprintf(stderr,"Loading image: %s...\n", pSampleImageFpath);
-          bool result = input.ReadFromFile(pSampleImageFpath);
-          if (result == false) {
-              fprintf(stderr,"\nError: Image file not found or invalid!\n");
-              exit(EXIT_FAILURE);
-          }
-          fprintf(stderr,"===============================================\n");
-        }
-        else {
-          makeRandomBMP(&input,parsed_args.width,parsed_args.width);
-        }
-        width = input.TellWidth();
-        height = input.TellHeight();
-        output.SetSize(width,height);
-        output.SetBitDepth(32); // RGBA
-
-        bitmap = new CPUBitmap( width, height, &data );
-        data.bitmap = bitmap;
-        copyBMPtoBitmap(&input,bitmap);
-        binaryImage = new int[width*height];
-        bitmapToBinary(bitmap,binaryImage);
+  bitmap = new CPUBitmap( width, height, &data );
+  data.bitmap = bitmap;
+  copyBMPtoBitmap(&input,bitmap);
+  binaryImage = new int[(width)*(height)];
+  bitmapToBinary(bitmap,binaryImage);
+  output.SetSize(width,height);
+  output.SetBitDepth(32); // RGBA
 
     fprintf(stderr,"LABELLING...\n");
 
@@ -352,21 +301,11 @@ int main(int argc, char **argv) {
        gpuTime,milliseconds);
     }
 
-	//Colourise
-    colourise(binaryImage,bitmap,width,height);
-
-    copyBitmapToBMP(bitmap,&output);
-    //binaryToBitmap(binaryImage,&bitmap);
-    //copyBitmapToBMP(&bitmap,&output);
-    //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
-    //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
-    char outname [255];
-    if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl-gpu.bmp",parsed_args.filename);
-    else sprintf(outname,"random-%dx%d-ccl-gpu.bmp",width,height);
-    output.WriteToFile(outname);
-    //bitmap.display_and_exit((void (*)(void*))anim_exit);
-    if (parsed_args.visualise) {
-      bitmap->display_and_exit((void (*)(void*))anim_exit);
-    }
+    finish(width, height,
+            output,
+            bitmap,
+            binaryImage,
+            parsed_args,
+            "ccl_gpu_global");
     delete[] binaryImage;
 }

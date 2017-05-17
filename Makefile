@@ -1,4 +1,4 @@
-CFLAGS=-O3 -g 
+CFLAGS=-O3 -g
 NVCCFLAGS= -Wno-deprecated-gpu-targets
 NVCCFLAGS += -Xcompiler -fopenmp
 LDFLAGS= -lglut -lGL -lGLU -lgomp
@@ -8,7 +8,7 @@ MPIFLAGS=-DOMPI_SKIP_MPICXX
 CC=nvcc
 MPICC=mpiCC
 
-all: ccl_unionfind ccl_gpu ccl_mpi
+all: ccl_unionfind ccl_gpu ccl_mpi ccl_gpu_global
 
 #ccl: ./src/ccl.cu $(SHAREDH) $(SHAREDC)
 #	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl.cu $(LDFLAGS) -o ccl
@@ -29,4 +29,4 @@ ccl_mpi: ./src/ccl_mpi.cpp $(SHAREDH) $(SHAREDC)
 	$(MPICC) $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_mpi.cpp $(LDFLAGS) -o ccl_mpi
 
 clean:
-	rm ccl_unionfind ccl_gpu ccl_mpi
+	rm ccl_unionfind ccl_gpu ccl_mpi ccl_gpu_global

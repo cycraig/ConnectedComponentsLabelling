@@ -228,11 +228,12 @@ int main(int argc, char **argv) {
     }
 
 	if(rank == 0) {
-		finish(width, height,
-						output,
-						bitmap,
-						binaryImage,
-						parsed_args);
+    finish(width, height,
+            output,
+            bitmap,
+            binaryImage,
+            parsed_args,
+            "ccl_mpi");
 		delete[] binaryImage;
 	}
 

@@ -21,6 +21,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 				if ((arg==0)||(atoi(arg) <= 0)) argp_error(state,"-w requires an integer larger than 0.");
 				else arguments->width = atoi(arg);
 				break;
+      case 'r': arguments->region_width = atoi(arg);
     	case ARGP_KEY_ARG: return 0;
 			default: return ARGP_ERR_UNKNOWN;
     }
@@ -53,7 +54,7 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 				"-m=random."},
 	    { "benchmark", 'b', 0, 0, "Turn benchmark mode on. If benchmark mode is on, the"
 			  " visualisation is turned off and the output is limited to comma "
-				"seperated values. Used for graph generation purposes."},
+				"seperated values. No image is saved. Used for graph generation purposes."},
 			{ "visual", 'v', 0, 0, "Turn the visualisation on. The program will bring up a "
         "window to preview the result of the labeling before saving the image. -b "
         "set will set -v."},
@@ -61,7 +62,7 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 		    " (and thus also height, since the generated image wil be square) of the"
 				" random image. Must be larger than 0."},
       { "regionsize", 'r', "<int>", 0, "Specify the width of the square block used"
-        "for the CUDA threads. Only affects ccl_gpu. Default is 8."},
+        "for the CUDA threads. Only affects ccl_gpu*. Default is 8."},
 	    { 0 }
 	};
 
@@ -131,7 +132,7 @@ void finish(int& width, int& height,
     BMP& output,
     CPUBitmap * bitmap,
     int* binaryImage,
-    arguments& parsed_args) {
+    arguments& parsed_args, const char* name) {
 
     fprintf(stderr,"Colouring image...\n");
     colourise(binaryImage,bitmap,width,height);
@@ -140,9 +141,9 @@ void finish(int& width, int& height,
     copyBitmapToBMP(bitmap,&output);
 
     char outname [255];
-    if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl-unionfind.bmp",parsed_args.filename);
-    else sprintf(outname,"random-%dx%d-ccl-unionfind.bmp",width,height);
-    output.WriteToFile(outname);
+    if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-%s.bmp",parsed_args.filename,name);
+    else sprintf(outname,"random-%dx%d-%s.bmp",width,height,name);
+    if (!parsed_args.bench) output.WriteToFile(outname);
     if (parsed_args.visualise) {
       bitmap->display_and_exit((void (*)(void*))anim_exit);
     }
@@ -160,10 +161,7 @@ void colourise(int* input, CPUBitmap* output, int width, int height) {
 				rgbaPixels[y*4*width+4*x+3] = 255;
 				continue;
 			}
-			/*rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 255;
-			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 255;
-			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 255;*/
-            rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 177 + (input[y*width+x] * 131) % 78+1;
+      rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 177 + (input[y*width+x] * 131) % 78+1;
 			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 56 + (input[y*width+x] * 241) % 199+1;
 			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 237  + (input[y*width+x] * 241) % 18+1;
 			rgbaPixels[y*4*width+4*x+3] = 255;

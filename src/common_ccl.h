@@ -37,10 +37,10 @@ bool start(int argc, char** argv,
     BMP& input,
     struct arguments& parsed_args);
 void finish(int& width, int& height,
-    BMP& ouput,
+    BMP& output,
     CPUBitmap * bitmap,
     int* binaryImage,
-    arguments& parsed_args);
+    arguments& parsed_args, const char* name);
 void colourise(int* input, CPUBitmap* output, int width, int height);
 void makeRandomBMP(BMP* output, int width, int height);
 void copyBMPtoBitmap(BMP* input, CPUBitmap* output);

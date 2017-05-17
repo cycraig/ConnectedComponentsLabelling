@@ -22,8 +22,6 @@ surface<void, cudaSurfaceType2D> surf_ref;
 __global__ void gpu_label(int width, int height) {
     // STEP 1 - Initial Labelling
 
-	//From https://cs.calvin.edu/courses/cs/374/CUDA/CUDA-Thread-Indexing-Cheatsheet.pdf
-	//int i = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
     int idx = width*y+x+1; // +1 to avoid 0 labels
@@ -34,7 +32,6 @@ __global__ void gpu_label(int width, int height) {
         if(temp != 0) {
 	        surf2Dwrite(idx, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
         }
-        //printf("x = %d, y = %d, i = %d\n",x,y,idx);
 	}
 }
 
@@ -78,7 +75,6 @@ __global__ void gpu_analysis(int width, int height) {
     // STEP 3 - Analysis
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -136,7 +132,6 @@ __global__ void gpu_link(int width, int height) {
     // STEP 4 - Link
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -161,7 +156,6 @@ __global__ void gpu_relabel(int width, int height) {
     // STEP 5 - Re-label
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -183,7 +177,6 @@ __global__ void gpu_rescan(int width, int height) {
     // STEP 5 - Re-Scan
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-    //int i = y*width + x;
 
 	int label;
     if ((x<width) && (y<height)) {
@@ -239,59 +232,30 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuT
 }
 
 int main(int argc, char **argv) {
-    int width, height;
-    int* binaryImage;
-    CPUBitmap *bitmap;
-    DataBlock data;
-    BMP output;
-    struct arguments parsed_args;
+  int width, height;
+	int* dims = new int[2];
+	int* binaryImage;
+	CPUBitmap *bitmap;
+	DataBlock data;
+	BMP output;
+  BMP input;
+  struct arguments parsed_args;
 
-    //initialize CUDA - outputs to stdout
-    findCudaDevice(argc, (const char **)argv);
-	cudaDeviceReset();
+  if (!start(argc, argv,
+      width, height,
+      input,
+      parsed_args)) exit(EXIT_FAILURE);
 
-      //Suppress EasyBMP warnings, as they go to stdout and are silly.
-      SetEasyBMPwarningsOff();
-      //Get arguments, parsed results are in struct parsed_args.
-      if (!get_args(argc, argv, &parsed_args)) {
-        exit(EXIT_FAILURE);
-      }
+  regionWidth = parsed_args.region_width;
+  regionHeight = parsed_args.region_width;
 
-      fprintf(stderr,"%s Starting...\n\n", argv[0]);
-        BMP input;
-        if (parsed_args.mode == NORMAL_MODE) {
-          //source and results image filenames
-          char *SampleImageFname = parsed_args.filename;
-
-          char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
-
-          if (pSampleImageFpath == NULL) {
-            fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
-            exit(EXIT_FAILURE);
-            }
-
-          fprintf(stderr,"===============================================\n");
-          fprintf(stderr,"Loading image: %s...\n", pSampleImageFpath);
-          bool result = input.ReadFromFile(pSampleImageFpath);
-          if (result == false) {
-              fprintf(stderr,"\nError: Image file not found or invalid!\n");
-              exit(EXIT_FAILURE);
-          }
-          fprintf(stderr,"===============================================\n");
-        }
-        else {
-          makeRandomBMP(&input,parsed_args.width,parsed_args.width);
-        }
-        width = input.TellWidth();
-        height = input.TellHeight();
-        output.SetSize(width,height);
-        output.SetBitDepth(32); // RGBA
-
-        bitmap = new CPUBitmap( width, height, &data );
-        data.bitmap = bitmap;
-        copyBMPtoBitmap(&input,bitmap);
-        binaryImage = new int[width*height];
-        bitmapToBinary(bitmap,binaryImage);
+  bitmap = new CPUBitmap( width, height, &data );
+  data.bitmap = bitmap;
+  copyBMPtoBitmap(&input,bitmap);
+  binaryImage = new int[(width)*(height)];
+  bitmapToBinary(bitmap,binaryImage);
+  output.SetSize(width,height);
+  output.SetBitDepth(32); // RGBA
 
     fprintf(stderr,"LABELLING...\n");
 
@@ -300,7 +264,6 @@ int main(int argc, char **argv) {
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-   // double start_time = omp_get_wtime();
     float gpuTime = 0;
     gpu_label(binaryImage,bitmap,width,height,&gpuTime);
 
@@ -309,7 +272,7 @@ int main(int argc, char **argv) {
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
     fprintf(stderr,"FINISHED...\n");
-    //printf("Time elapsed: %f ms\n",(end_time-start_time)*1000.0);
+
     if (!parsed_args.bench) {
       printf("Time elapsed (gpu): %.6f ms\n",gpuTime);
       printf("Time elapsed (total): %.6f ms\n",milliseconds);
@@ -320,21 +283,11 @@ int main(int argc, char **argv) {
        gpuTime,milliseconds);
     }
 
-	//Colourise
-    colourise(binaryImage,bitmap,width,height);
-
-    copyBitmapToBMP(bitmap,&output);
-    //binaryToBitmap(binaryImage,&bitmap);
-    //copyBitmapToBMP(&bitmap,&output);
-    //HANDLE_ERROR( cudaMemcpy( bitmap.get_ptr(), ImgSrc, imageSize, cudaMemcpyHostToHost ) );
-    //DumpBmpAsGray("out.bmp", ImgSrc, ImgStride, ImgSize);
-    char outname [255];
-    if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl-gpu.bmp",parsed_args.filename);
-    else sprintf(outname,"random-%dx%d-ccl-gpu.bmp",width,height);
-    output.WriteToFile(outname);
-    //bitmap.display_and_exit((void (*)(void*))anim_exit);
-    if (parsed_args.visualise) {
-      bitmap->display_and_exit((void (*)(void*))anim_exit);
-    }
+    finish(width, height,
+            output,
+            bitmap,
+            binaryImage,
+            parsed_args,
+            "ccl_gpu");
     delete[] binaryImage;
 }

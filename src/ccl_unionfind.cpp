@@ -140,7 +140,8 @@ int main(int argc, char **argv) {
           output,
           bitmap,
           binaryImage,
-          parsed_args);
+          parsed_args,
+          "ccl_unionfind");
   delete[] binaryImage;
   return 0;
 }
