@@ -7,25 +7,26 @@ then
 	exit
 fi
 p=$1
-nodes=$((($p+3-1)/3));
 w="20"
+nodes=$((($p+3-1)/3));
 jobname="mpi_ccl_${p}_${w}"
 echo "Starting job ${jobname}..."
 dir=$(pwd)
 echo "Requesting $p processes over $nodes node/s"
 cat <<EOS | qsub -
-#!/bin/sh
+#!/bin/bash
 #PBS -N $jobname
 #PBS -e job.err
 #PBS -o job.log
-#PBS -l walltime=0:05:00
+#PBS -l walltime=0:01:00
 #PBS -q batch
 #PBS -l nodes=$nodes:ppn=3
 cd $dir
 make
 while [ $w -lt 2025 ]
 do
+	(>&2 echo "$w")
 	mpirun -np $p ./ccl_mpi -m random -w $w -b >> "mpi${p}.out"
-	w=$[$w+20]
+	$((w=$w+20))
 done
 EOS
