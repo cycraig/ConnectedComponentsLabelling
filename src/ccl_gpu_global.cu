@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
     }
     else {
       printf("%s,%d,%d,%f,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
-       width*height,regionWidth*regionHeight
+       width*height,regionWidth*regionHeight,
        gpuTime,milliseconds);
     }
 
