@@ -23,5 +23,5 @@ cat <<EOS | qsub -
 #PBS -l nodes=$nodes:ppn=3
 cd $dir
 make
-./ccl_unionfind -m random -w $w -b >> "union${p}.out"
+./ccl_gpu_global -m random -w $w -b >> "gpu_global${p}.out"
 EOS

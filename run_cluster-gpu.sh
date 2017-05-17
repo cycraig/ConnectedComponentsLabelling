@@ -24,5 +24,5 @@ cat <<EOS | qsub -
 #PBS -l nodes=$nodes:ppn=3
 cd $dir
 make
-./ccl_gpu -m random -w $w -b -r $r >> "gpu-block${p}.out"
+./ccl_gpu_global -m random -w $w -b -r $r >> "gpu-global-block${p}.out"
 EOS
