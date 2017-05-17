@@ -1,0 +1,34 @@
+# Gnuplot script file for plotting data in file "force.dat"
+# This file is called   force.p
+set autoscale
+set datafile separator ","
+unset log
+set key left
+#unset label
+#unset title
+#unset key
+f(x) = a*x
+fit f(x) "../results/union1.out" using 2:3 via a
+g(x) = b*x
+fit g(x) "../results/mpi4.out" using 2:4 via b
+h(x) = c*x
+fit h(x) "../results/gpu1.out" using 2:4 via c
+set xtic auto
+set ytic auto 
+set title "Implementation Comparison"
+set ylabel "Labeling Time (ms)"
+set xlabel "No. pixels"
+#set size 1.5, 1.5
+#set xr [0.0:0.022]
+#set yr [0:325]
+#set xtics 500000,500000,10000000
+#set terminal epslatex oldstyle
+#set output "allInteg.eps"
+set terminal png size 1280,720 enhanced
+set output "gp_all.png"
+plot "../results/union1.out" using 2:3 w points t "Unionfind (serial)", \
+     "../results/mpi4.out" using 2:4 w points t "MPI Unionfind (mpi)", \
+     "../results/gpu1.out" using 2:4 w points t "GPU Unionfind (gpu)", \
+     f(x) t "f(x) = a*x", \
+     g(x) t "g(x) = b*x", \
+     h(x) t "h(x) = c*x", \
