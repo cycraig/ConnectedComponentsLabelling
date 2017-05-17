@@ -1,13 +1,14 @@
 #!/bin/sh
 
-if [ ! $# -eq 2 ]
-then
-	echo "Usage:   $0 num_processes random_image_size"
-	echo "Example: $0 8 1024"
-	exit
-fi
+#if [ ! $# -eq 2 ]
+#then###
+#	echo "Usage:   $0 num_processes random_image_size"
+#	echo "Example: $0 8 1024"
+#	exit
+#fi
 p=$1
 w=$2
+r=$3
 nodes=$((($p+3-1)/3));
 jobname="mpi_ccl_${p}_${w}"
 echo "Starting job ${jobname}..."
@@ -23,5 +24,5 @@ cat <<EOS | qsub -
 #PBS -l nodes=$nodes:ppn=3
 cd $dir
 make
-./ccl_unionfind -m random -w $w -b >> "union${p}.out"
+./ccl_gpu -m random -w $w -b -r $r >> "gpu-block${p}.out"
 EOS
