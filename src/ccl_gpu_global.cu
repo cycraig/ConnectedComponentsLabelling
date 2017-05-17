@@ -12,12 +12,9 @@
  } \
 }
 
-int regionWidth = 8;
-int regionHeight = 8;
+int regionWidth = 32;
+int regionHeight = 32;
 int total_index;
-
-//Texture binding variable
-surface<void, cudaSurfaceType2D> surf_ref;
 
 void colourise(int* input, CPUBitmap* output, int width, int height) {
 	unsigned char *rgbaPixels = output->get_ptr();
@@ -42,62 +39,64 @@ void colourise(int* input, CPUBitmap* output, int width, int height) {
 	}
 }
 
-__global__ void gpu_label(int width, int height) {
+__global__ void gpu_label(int width, int height, int* globalImage) {
     // STEP 1 - Initial Labelling
 
-	//From https://cs.calvin.edu/courses/cs/374/CUDA/CUDA-Thread-Indexing-Cheatsheet.pdf
-	//int i = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
     int idx = width*y+x+1; // +1 to avoid 0 labels
 
 	int temp;
     if ((x<width) && (y<height)) {
-        surf2Dread(&temp, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+	temp = globalImage[x+y*width];
         if(temp != 0) {
-	        surf2Dwrite(idx, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+			globalImage[x+y*width] = idx; 
         }
         //printf("x = %d, y = %d, i = %d\n",x,y,idx);
 	}
 }
 
-__device__ int getMinNeighbourScan(int x, int y, int label) {
-    // boundary mode zero causes out of range reads to return 0 (convenient)
+__device__ int getMinNeighbourScan(int x, int y, int width, int height, int label, int* globalImage) {
     int minLabel = label, curr = -1;
     // south-west
-    surf2Dread(&curr, surf_ref, (x-1)*sizeof(int), y+1, cudaBoundaryModeZero);
+	if(x > 0 && y < (height-1))
+    	curr = globalImage[x-1+(y+1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // west
-    surf2Dread(&curr, surf_ref, (x-1)*sizeof(int), y, cudaBoundaryModeZero);
+	if(x > 0)
+    	curr = globalImage[x-1+(y)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // north-west
-    surf2Dread(&curr, surf_ref, (x-1)*sizeof(int), y-1, cudaBoundaryModeZero);
+	if(x > 0 && y > 0)
+    	curr = globalImage[x-1+(y-1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // north
-    surf2Dread(&curr, surf_ref, x*sizeof(int), y-1, cudaBoundaryModeZero);
+	if(y > 0)
+    	curr = globalImage[x+(y-1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // north-east
-    surf2Dread(&curr, surf_ref, (x+1)*sizeof(int), y-1, cudaBoundaryModeZero);
+	if(x < (width-1) && y > 0)
+    	curr = globalImage[x+1+(y-1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     return minLabel;
 }
 
-__global__ void gpu_scan(int width, int height) {
+__global__ void gpu_scan(int width, int height, int* globalImage) {
     // STEP 2 - Scanning
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
 
 	int label;
     if ((x<width) && (y<height)) {
-	    surf2Dread(&label, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+	    label = globalImage[x+y*width];
         if(label != 0) {
-            int minLabelScanned = getMinNeighbourScan(x,y,label);
-	        surf2Dwrite(minLabelScanned, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+            int minLabelScanned = getMinNeighbourScan(x,y,width,height,label,globalImage);
+	        globalImage[x+y*width] = minLabelScanned;
         }
 	}
 }
 
-__global__ void gpu_analysis(int width, int height) {
+__global__ void gpu_analysis(int width, int height, int* globalImage) {
     // STEP 3 - Analysis
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -105,7 +104,7 @@ __global__ void gpu_analysis(int width, int height) {
 
 	int label;
     if ((x<width) && (y<height)) {
-	    surf2Dread(&label, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+		label = globalImage[x+y*width];
         if(label != 0) {
             // propagate labels
             // "recursively" get the final label
@@ -117,45 +116,52 @@ __global__ void gpu_analysis(int width, int height) {
                 idx = label-1; // -1 since labels start from 1 and we want 1D pixel index
                 lx = idx%width;
                 ly = idx/width;
-                surf2Dread(&label, surf_ref, lx*sizeof(int), ly, cudaBoundaryModeZero);
+				label = globalImage[lx+ly*width];
             }
-	        surf2Dwrite(label, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+			globalImage[x+y*width] = label;
         }
 	}
 }
 
-__device__ int getMinNeighbourLink(int x, int y, int label) {
-    // boundary mode zero causes out of range reads to return 0 (convenient)
-    int minLabel = label, curr = -1;
+__device__ int getMinNeighbourLink(int x, int y, int width, int height, int label, int* globalImage) {
+    int minLabel = label;
+	int curr = -1;
 
 	// CHANGED FROM PAPER
 	// Need to check south-east, north, and north-west as well for the algorithm to work
 
-    // south-west
-    surf2Dread(&curr, surf_ref, (x-1)*sizeof(int), y+1, cudaBoundaryModeZero);
+	// south-west
+	if(x > 0 && y < (height-1))
+    	curr = globalImage[x-1+(y+1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
 	// south-east
-	surf2Dread(&curr, surf_ref, (x+1)*sizeof(int), y+1, cudaBoundaryModeZero);
+	if(x < (width-1) && y < (height-1))
+    	curr = globalImage[x+1+(y+1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // west
-    surf2Dread(&curr, surf_ref, (x-1)*sizeof(int), y, cudaBoundaryModeZero);
+	if(x > 0)
+    	curr = globalImage[x-1+(y)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // east
-    surf2Dread(&curr, surf_ref, (x+1)*sizeof(int), y, cudaBoundaryModeZero);
+	if(x < (width-1))
+    	curr = globalImage[x+1+(y)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     // north-east
-    surf2Dread(&curr, surf_ref, (x+1)*sizeof(int), y-1, cudaBoundaryModeZero);
+	if(x < (width-1) && y > 0)
+    	curr = globalImage[x+1+(y-1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
 	// north
-    surf2Dread(&curr, surf_ref, x*sizeof(int), y-1, cudaBoundaryModeZero);
+	if(y > 0)
+		curr = globalImage[x+(y-1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
 	// north-west
-    surf2Dread(&curr, surf_ref, (x-1)*sizeof(int), y-1, cudaBoundaryModeZero);
+	if(x > 0 && y > 0)
+		curr = globalImage[x-1+(y-1)*width];
     if(curr > 0) minLabel = min(minLabel,curr);
     return minLabel;
 }
 
-__global__ void gpu_link(int width, int height) {
+__global__ void gpu_link(int width, int height, int* globalImage) {
     // STEP 4 - Link
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -163,10 +169,10 @@ __global__ void gpu_link(int width, int height) {
 
 	int label;
     if ((x<width) && (y<height)) {
-	    surf2Dread(&label, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+		label = globalImage[x+y*width];
         if(label != 0) {
             // scan neighbours
-            int minLabel = getMinNeighbourLink(x,y,label);
+            int minLabel = getMinNeighbourLink(x,y,width, height, label, globalImage);
             // update pixel of REFERENCE label (not current pixel)
             // this is so that all other pixels can simply reference that pixel
             // in the next step
@@ -174,13 +180,14 @@ __global__ void gpu_link(int width, int height) {
                 int refIdx = label-1; // -1 since labels start from 1 and we want 1D pixel index
                 int refx = refIdx%width;
                 int refy = refIdx/width;
-	            surf2Dwrite(minLabel, surf_ref, refx*sizeof(int), refy, cudaBoundaryModeZero);
+				// reduces contention - makes it faster than surface
+				atomicMin(&globalImage[refx+refy*width],minLabel);
             }
         }
 	}
 }
 
-__global__ void gpu_relabel(int width, int height) {
+__global__ void gpu_relabel(int width, int height, int* globalImage) {
     // STEP 5 - Re-label
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -188,21 +195,21 @@ __global__ void gpu_relabel(int width, int height) {
 
 	int label;
     if ((x<width) && (y<height)) {
-	    surf2Dread(&label, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+		label = globalImage[x+y*width];
         if(label != 0) {
             // resolve label equivalences (after previous step)
             int refIdx = label-1; // -1 since labels start from 1 and we want 1D pixel index
             int refx = refIdx%width;
             int refy = refIdx/width;
             int refLabel;
-            surf2Dread(&refLabel, surf_ref, refx*sizeof(int), refy, cudaBoundaryModeZero);
-            surf2Dwrite(refLabel, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+			refLabel = globalImage[refx+refy*width];
+			globalImage[x+y*width] = refLabel;
         }
 	}
 }
 
 __device__ bool done;
-__global__ void gpu_rescan(int width, int height) {
+__global__ void gpu_rescan(int width, int height, int* globalImage) {
     // STEP 5 - Re-Scan
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -210,10 +217,10 @@ __global__ void gpu_rescan(int width, int height) {
 
 	int label;
     if ((x<width) && (y<height)) {
-	    surf2Dread(&label, surf_ref, x*sizeof(int), y, cudaBoundaryModeZero);
+	    label = globalImage[x+y*width];
         if(label != 0) {
             // check if all regions are connected
-            int minNeighbour = getMinNeighbourScan(x,y,label);
+            int minNeighbour = getMinNeighbourScan(x,y,width,height,label,globalImage);
             if(minNeighbour != label) {
                 done = false;
             }
@@ -222,33 +229,37 @@ __global__ void gpu_rescan(int width, int height) {
 }
 
 void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuTime) {
-    cudaArray* gpuImage;
+	int* globalImage;
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned);
-    cudaErrorCheck(cudaMallocArray(&gpuImage, &channelDesc, width, height, cudaArraySurfaceLoadStore));
-    cudaErrorCheck(cudaMemcpyToArray(gpuImage, 0, 0, image, width*height*sizeof(int), cudaMemcpyHostToDevice));
-    cudaErrorCheck(cudaBindSurfaceToArray(surf_ref, gpuImage));
+	cudaErrorCheck(cudaMalloc((void**)&globalImage,width*height*sizeof(int)));
+	cudaErrorCheck(cudaMemcpy(globalImage,image,width*height*sizeof(int), cudaMemcpyHostToDevice));
 
     dim3 block_dim(regionWidth, regionHeight);
     int gridWidth = width/block_dim.x;
     int gridHeight = height/block_dim.y;
     if (width%block_dim.x != 0) gridWidth++;
     if (height%block_dim.y != 0) gridHeight++;
-    int result = false;
+    bool result = false;
     dim3 grid_dim(gridWidth, gridHeight);
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
-
-    gpu_label<<<grid_dim, block_dim>>>(width, height);
-    gpu_scan<<<grid_dim, block_dim>>>(width, height);
-    gpu_analysis<<<grid_dim, block_dim>>>(width, height);
+    gpu_label<<<grid_dim, block_dim>>>(width, height, globalImage);
+	cudaDeviceSynchronize();
+    gpu_scan<<<grid_dim, block_dim>>>(width, height, globalImage);
+	cudaDeviceSynchronize();
+    gpu_analysis<<<grid_dim, block_dim>>>(width, height, globalImage);
+	cudaDeviceSynchronize();
     while(result == false) {
-        gpu_link<<<grid_dim, block_dim>>>(width, height);
-        gpu_relabel<<<grid_dim, block_dim>>>(width, height);
+        gpu_link<<<grid_dim, block_dim>>>(width, height, globalImage);
+		cudaDeviceSynchronize();
+        gpu_relabel<<<grid_dim, block_dim>>>(width, height, globalImage);
+		cudaDeviceSynchronize();
         result = true;
         cudaErrorCheck(cudaMemcpyToSymbol(done, &result, sizeof(bool)));
-        gpu_rescan<<<grid_dim, block_dim>>>(width, height);
+        gpu_rescan<<<grid_dim, block_dim>>>(width, height, globalImage);
+		cudaDeviceSynchronize();
         cudaErrorCheck(cudaMemcpyFromSymbol(&result, done, sizeof(bool)));
     }
 
@@ -256,9 +267,8 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuT
     cudaEventSynchronize(stop);
     *gpuTime = 0;
     cudaEventElapsedTime(gpuTime, start, stop);
-    cudaErrorCheck(cudaMemcpyFromArray(image, gpuImage, 0, 0,width*height*sizeof(int), cudaMemcpyDeviceToHost));
-	// apparently you don't need to unbind surfaces
-    cudaErrorCheck(cudaFreeArray(gpuImage));
+	cudaErrorCheck(cudaMemcpy(image, globalImage,width*height*sizeof(int), cudaMemcpyDeviceToHost));
+	cudaErrorCheck(cudaFree(globalImage));
 }
 
 int main(int argc, char **argv) {
@@ -270,8 +280,7 @@ int main(int argc, char **argv) {
     struct arguments parsed_args;
 
     //initialize CUDA - outputs to stdout
-    findCudaDevice(argc, (const char **)argv);
-	cudaDeviceReset();
+    //findCudaDevice(argc, (const char **)argv);
 
       //Suppress EasyBMP warnings, as they go to stdout and are silly.
       SetEasyBMPwarningsOff();
