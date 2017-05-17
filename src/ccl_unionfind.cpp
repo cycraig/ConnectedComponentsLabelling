@@ -20,8 +20,10 @@ public:
       int labelsPerRank = rowsPerRank*width; // ceil
       id = new int[width*height+1];
       id[0]=0;
-      for (int i = 0; i<width*height; i++) {
-          id[i+1] = in[i]+(labelsPerRank*(i/labelsPerRank));
+      for (int x = 0; x<width; x++) {
+        for (int y=0; y<height; y++) {
+          id[y*width+x+1] = in[y*width+x]+(labelsPerRank*(y/rowsPerRank));
+        }
       }
     }
 
@@ -157,11 +159,11 @@ void merge_rows(int* blockRows, int processes, int rowsPerRank, int width, int h
           // local label
           label = y*width+x+1;
 
-			    //if(x > 0) {
-				  //  w = blockRows[y*width+x-1];
-					//if(w != 0)
-	        //            unionFind.merge(label,y*width+x-1+1);
-			    //}
+			    if(x > 0) {
+				    w = blockRows[y*width+x-1];
+					if(w != 0)
+	                    unionFind.merge(label,y*width+x-1+1);
+			    }
 			    if(y > 0) {
 				    n = blockRows[(y-1)*width+x];
 					if(n != 0)
@@ -180,14 +182,13 @@ void merge_rows(int* blockRows, int processes, int rowsPerRank, int width, int h
 			    //image[y*width+x] = label;
       }
 		}
-  }
-
-// relabel
-  for(int y = rowsPerRank; y < height; y++) {
-    for(int x = 0; x < width; x++) {
-      if(blockRows[y*width+x] > 0)
-          blockRows[y*width+x] = unionFind.find(y*width+x+1);
-    }
+    // relabel
+      for(int yi = y; (yi < y+rowsPerRank)&&(yi < height); yi++) {
+        for(int x = 0; x < width; x++) {
+          if(blockRows[yi*width+x] > 0)
+              blockRows[yi*width+x] = unionFind.find(yi*width+x+1);
+        }
+      }
   }
 
 }

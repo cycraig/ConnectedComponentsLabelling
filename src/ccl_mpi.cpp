@@ -308,8 +308,8 @@ int main(int argc, char **argv) {
         	printf("Time elapsed (total):     %.6f ms\n",(stop_total-start_total)*1000.0);
 				}
 				else {
-					printf("%s,%d,%d,%f,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
-					 width, height,
+					printf("%s,%d,%f,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
+					 width*height,
 				   (stop-start)*1000.0,(stop_total-start_total)*1000.0);
 				}
     }

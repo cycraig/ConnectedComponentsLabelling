@@ -16,7 +16,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 				else arguments->filename = arg;
 				break;
     	case 'b': arguments->bench = true; arguments->visualise = false; break;
-			case 'v': arguments->bench = true; arguments->visualise = false; break;
+			case 'v': arguments->visualise = false; break;
 			case 'w':
 				if ((arg==0)||(atoi(arg) <= 0)) argp_error(state,"-w requires an integer larger than 0.");
 				else arguments->width = atoi(arg);

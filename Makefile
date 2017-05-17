@@ -9,19 +9,19 @@ CC=nvcc
 
 all: ccl ccl_fast ccl_unionfind ccl_gpu ccl_mpi
 
-ccl: ./src/ccl.cu $(SHAREDH)
+ccl: ./src/ccl.cu $(SHAREDH) $(SHAREDC)
 	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl.cu $(LDFLAGS) -o ccl
 
-ccl_fast: ./src/ccl_fast.cu $(SHAREDH)
+ccl_fast: ./src/ccl_fast.cu $(SHAREDH) $(SHAREDC)
 	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl_fast.cu $(LDFLAGS) -o ccl_fast
 
-ccl_unionfind: ./src/ccl_unionfind.cpp $(SHAREDH)
+ccl_unionfind: ./src/ccl_unionfind.cpp $(SHAREDH) $(SHAREDC)
 	mpiCC $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_unionfind.cpp $(LDFLAGS) -o ccl_unionfind
 
-ccl_gpu: ./src/ccl_gpu.cu $(SHAREDH)
+ccl_gpu: ./src/ccl_gpu.cu $(SHAREDH) $(SHAREDC)
 	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl_gpu.cu $(LDFLAGS) -arch compute_30 -o ccl_gpu
 
-ccl_mpi: ./src/ccl_mpi.cpp $(SHAREDH)
+ccl_mpi: ./src/ccl_mpi.cpp $(SHAREDH) $(SHAREDC)
 	mpiCC $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_mpi.cpp $(LDFLAGS) -o ccl_mpi
 
 clean:

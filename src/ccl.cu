@@ -192,8 +192,8 @@ int main(int argc, char **argv) {
 			printf("Time elapsed (total): %.6f ms\n",milliseconds);
 		}
 		else {
-			printf("%s,%d,%d,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
-			 width, height,
+			printf("%s,%d,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
+			 width*height,
 			 milliseconds);
 		}
 

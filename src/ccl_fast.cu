@@ -481,9 +481,9 @@ int main(int argc, char **argv) {
       printf("Time elapsed (total): %.6f ms\n",timeTotal);
     }
     else {
-      printf("%s,%d,%d,%f\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
+      printf("%s,%d,%d,%f,%d\n",parsed_args.mode==NORMAL_MODE?"normal":"random",
        width, height,
-       timeTotal);
+       timeTotal, regionWidth*regionHeight);
     }
 
     //printf("PIXEL (99,77) = %d\n",binaryImage[77*width+99]);
