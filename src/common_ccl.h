@@ -27,10 +27,21 @@ struct arguments {
 		bool bench;
 		bool visualise;
 		int width;
+    int region_width;
 };
 static error_t parse_opt(int key, char *arg, struct argp_state *state);
 bool get_args(int argc, char** argv, struct arguments* parsed_args);
 
+bool start(int argc, char** argv,
+    int& width, int& height,
+    BMP& input,
+    struct arguments& parsed_args);
+void finish(int& width, int& height,
+    BMP& ouput,
+    CPUBitmap * bitmap,
+    int* binaryImage,
+    arguments& parsed_args);
+void colourise(int* input, CPUBitmap* output, int width, int height);
 void makeRandomBMP(BMP* output, int width, int height);
 void copyBMPtoBitmap(BMP* input, CPUBitmap* output);
 void copyBitmapToBMP(CPUBitmap* input, BMP* output);

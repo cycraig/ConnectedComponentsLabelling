@@ -16,7 +16,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 				else arguments->filename = arg;
 				break;
     	case 'b': arguments->bench = true; arguments->visualise = false; break;
-			case 'v': arguments->visualise = false; break;
+			case 'v': arguments->visualise = true; break;
 			case 'w':
 				if ((arg==0)||(atoi(arg) <= 0)) argp_error(state,"-w requires an integer larger than 0.");
 				else arguments->width = atoi(arg);
@@ -31,8 +31,9 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 	parsed_args->mode = NORMAL_MODE;
 	parsed_args->filename = NULL;
 	parsed_args->bench = false;
-	parsed_args->visualise = true;
+	parsed_args->visualise = false;
 	parsed_args->width = -1;
+  parsed_args->region_width = 8;
 
 	const char* argp_program_bug_address =
 	 "craig.bester@students.wits.ac.za|liam.pulles@students.wits.ac.za";
@@ -50,15 +51,17 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 	    { "file", 'f', "<image file>", 0, "Input greyscale 24 bit RGB image. The program "
 			  "automatically binarises the image by thresholding. Not neccesary if "
 				"-m=random."},
-	    { "bench", 'b', 0, 0, "Turn benchmark mode on. If benchmark mode is on, the"
+	    { "benchmark", 'b', 0, 0, "Turn benchmark mode on. If benchmark mode is on, the"
 			  " visualisation is turned off and the output is limited to comma "
 				"seperated values. Used for graph generation purposes."},
-			{ "visual-off", 'v', 0, 0, "Turn the visualisation off. By default,"
-		    " the program will bring up a window to preview the result of the "
-				"labeling before saving the image. -b set will set -v."},
+			{ "visual", 'v', 0, 0, "Turn the visualisation on. The program will bring up a "
+        "window to preview the result of the labeling before saving the image. -b "
+        "set will set -v."},
 			{ "width", 'w', "<int>", 0, "Only required if -m=random. Specifies the width"
 		    " (and thus also height, since the generated image wil be square) of the"
 				" random image. Must be larger than 0."},
+      { "regionsize", 'r', "<int>", 0, "Specify the width of the square block used"
+        "for the CUDA threads. Only affects ccl_gpu. Default is 8."},
 	    { 0 }
 	};
 
@@ -83,6 +86,91 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 }
 /***********END OF ARGUMENT HANDLING************/
 
+bool start(int argc, char** argv,
+    int& width, int& height,
+    BMP& input,
+    arguments& parsed_args) {
+
+      //Suppress EasyBMP warnings, as they go to stdout and are silly.
+      SetEasyBMPwarningsOff();
+
+      if (!get_args(argc, argv, &parsed_args)) {
+        exit(EXIT_FAILURE);
+      }
+
+      fprintf(stderr,"%s Starting...\n\n", argv[0]);
+        if (parsed_args.mode == NORMAL_MODE) {
+          char *SampleImageFname = parsed_args.filename;
+
+          char *pSampleImageFpath = sdkFindFilePath(SampleImageFname, argv[0]);
+
+          if (pSampleImageFpath == NULL) {
+            fprintf(stderr,"%s could not locate Sample Image <%s>\nExiting...\n", pSampleImageFpath);
+            return false;
+            }
+
+          fprintf(stderr,"===============================================\n");
+          fprintf(stderr,"Loading image: %s...\n", pSampleImageFpath);
+          bool result = input.ReadFromFile(pSampleImageFpath);
+          if (result == false) {
+              fprintf(stderr,"\nError: Image file not found or invalid!\n");
+              return false;
+          }
+          fprintf(stderr,"===============================================\n");
+        }
+        else {
+          makeRandomBMP(&input,parsed_args.width,parsed_args.width);
+        }
+        width = input.TellWidth();
+        height = input.TellHeight();
+
+        return true;
+}
+
+void finish(int& width, int& height,
+    BMP& output,
+    CPUBitmap * bitmap,
+    int* binaryImage,
+    arguments& parsed_args) {
+
+    fprintf(stderr,"Colouring image...\n");
+    colourise(binaryImage,bitmap,width,height);
+    fprintf(stderr,"Done colouring...\n");
+
+    copyBitmapToBMP(bitmap,&output);
+
+    char outname [255];
+    if (parsed_args.mode == NORMAL_MODE) sprintf(outname,"%s-ccl-unionfind.bmp",parsed_args.filename);
+    else sprintf(outname,"random-%dx%d-ccl-unionfind.bmp",width,height);
+    output.WriteToFile(outname);
+    if (parsed_args.visualise) {
+      bitmap->display_and_exit((void (*)(void*))anim_exit);
+    }
+}
+
+void colourise(int* input, CPUBitmap* output, int width, int height) {
+	unsigned char *rgbaPixels = output->get_ptr();
+	for(int y = 0; y < height; y++) {
+		for(int x = 0; x < width; x++) {
+			int label = input[y*width+x];
+			if(label == 0) {
+				rgbaPixels[y*4*width+4*x]   = 0;
+				rgbaPixels[y*4*width+4*x+1] = 0;
+				rgbaPixels[y*4*width+4*x+2] = 0;
+				rgbaPixels[y*4*width+4*x+3] = 255;
+				continue;
+			}
+			/*rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 255;
+			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 255;
+			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 255;*/
+            rgbaPixels[y*4*width+4*x]   = (input[y*width+x] * 131) % 177 + (input[y*width+x] * 131) % 78+1;
+			rgbaPixels[y*4*width+4*x+1] = (input[y*width+x] * 241) % 56 + (input[y*width+x] * 241) % 199+1;
+			rgbaPixels[y*4*width+4*x+2] = (input[y*width+x] * 251) % 237  + (input[y*width+x] * 241) % 18+1;
+			rgbaPixels[y*4*width+4*x+3] = 255;
+		}
+	}
+}
+
 void makeRandomBMP(BMP* output, int width, int height) {
   output->SetSize(width,height);
   output->SetBitDepth(32); // RGBA
@@ -95,7 +183,7 @@ void makeRandomBMP(BMP* output, int width, int height) {
       //Makes horizontal bars
       if (x%20 == line_mod) val = 0;
       //Connects the horizontal bars every so often
-      if (rand()%600 == line_mod) val = 255-val;
+      //if (rand()%600 == line_mod) val = 255-val;
       (*output)(x,y)->Red   = val;
       (*output)(x,y)->Green = val;
       (*output)(x,y)->Blue  = val;

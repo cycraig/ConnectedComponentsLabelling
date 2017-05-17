@@ -7,13 +7,13 @@ SHAREDC=./src/EasyBMP.cpp ./src/common_ccl.cpp
 MPIFLAGS=-DOMPI_SKIP_MPICXX
 CC=nvcc
 
-all: ccl ccl_fast ccl_unionfind ccl_gpu ccl_mpi
+all: ccl_unionfind ccl_gpu ccl_mpi
 
-ccl: ./src/ccl.cu $(SHAREDH) $(SHAREDC)
-	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl.cu $(LDFLAGS) -o ccl
+#ccl: ./src/ccl.cu $(SHAREDH) $(SHAREDC)
+#	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl.cu $(LDFLAGS) -o ccl
 
-ccl_fast: ./src/ccl_fast.cu $(SHAREDH) $(SHAREDC)
-	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl_fast.cu $(LDFLAGS) -o ccl_fast
+#ccl_fast: ./src/ccl_fast.cu $(SHAREDH) $(SHAREDC)
+#	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl_fast.cu $(LDFLAGS) -o ccl_fast
 
 ccl_unionfind: ./src/ccl_unionfind.cpp $(SHAREDH) $(SHAREDC)
 	mpiCC $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_unionfind.cpp $(LDFLAGS) -o ccl_unionfind
@@ -25,4 +25,4 @@ ccl_mpi: ./src/ccl_mpi.cpp $(SHAREDH) $(SHAREDC)
 	mpiCC $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_mpi.cpp $(LDFLAGS) -o ccl_mpi
 
 clean:
-	rm ccl ccl_fast ccl_unionfind ccl_gpu ccl_mpi
+	rm ccl_unionfind ccl_gpu ccl_mpi
