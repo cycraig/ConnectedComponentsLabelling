@@ -24,14 +24,16 @@ set xlabel "Image name (.bmp)"
 #set xtics 500000,500000,10000000
 #set terminal epslatex oldstyle
 #set output "allInteg.eps"
+#set boxwidth 0.5
+#set style fill solid
 set terminal png size 1280,720 enhanced
-set output "gp_all.png"
-plot "../results/Challenge/new-union.csv" using 1:5 w points t "Unionfind (serial)", \
-     "../results/mpi4.out" using 2:4 w points t "MPI Unionfind (mpi)", \
-     "../results/gpu1.out" using 2:4 w points t "GPU Unionfind (gpu)", \
+set output "gp_challenge.png"
+plot "../results/Challenge/filtered-union.csv" using 1:2 w boxes t "Unionfind (serial)", \
+     "../results/Challenge/filtered-mpi.csv" using 1:2 w boxes t "Unionfind MPI (mpi)", \
+     "../results/Challenge/filtered-gpu.csv" using 1:2 w boxes t "Unionfind GPU (gpu)", \
      #"../results/union1.out" using 2:3 w points t "Unionfind (serial)", \
      #"../results/mpi4.out" using 2:4 w points t "MPI Unionfind (mpi)", \
      #"../results/gpu1.out" using 2:4 w points t "GPU Unionfind (gpu)", \
-     f(x) t "f(x) = a*x", \
-     g(x) t "g(x) = b*x", \
-     h(x) t "h(x) = c*x", \
+     #f(x) t "f(x) = a*x", \
+     #g(x) t "g(x) = b*x", \
+     #h(x) t "h(x) = c*x", \
