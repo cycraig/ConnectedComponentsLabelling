@@ -23,8 +23,8 @@ cat <<EOS | qsub -
 #PBS -l nodes=$nodes:ppn=3
 cd $dir
 make
-./ccl_gpu_global -f "$f" -b >> "new-gpu_global${f}.out"
-./ccl_gpu -f "$f" -b >> "new-gpu${f}.out"
-./ccl_unionfind -f "$f" -b >> "new-union${f}.out"
-#./ccl_mpi -f "$f" -b >> "new-mpi${f}.out"
+#./ccl_gpu_global -f "$f" -b >> "new-gpu_global${f}.out"
+#./ccl_gpu -f "$f" -b >> "new-gpu${f}.out"
+#./ccl_unionfind -f "$f" -b >> "new-union${f}.out"
+./ccl_mpi -f "$f" -b >> "new-mpi${f}.out"
 EOS
