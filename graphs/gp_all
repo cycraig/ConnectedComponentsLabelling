@@ -29,6 +29,9 @@ set output "gp_all.png"
 plot "../results/union1.out" using 2:3 w points t "Unionfind (serial)", \
      "../results/mpi4.out" using 2:4 w points t "MPI Unionfind (mpi)", \
      "../results/gpu1.out" using 2:4 w points t "GPU Unionfind (gpu)", \
+     #"../results/union1.out" using 2:3 w points t "Unionfind (serial)", \
+     #"../results/mpi4.out" using 2:4 w points t "MPI Unionfind (mpi)", \
+     #"../results/gpu1.out" using 2:4 w points t "GPU Unionfind (gpu)", \
      f(x) t "f(x) = a*x", \
      g(x) t "g(x) = b*x", \
      h(x) t "h(x) = c*x", \
