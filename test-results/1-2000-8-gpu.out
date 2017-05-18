@@ -8,3 +8,13 @@ Cuda failure ./src/ccl_gpu.cu:197: 'unknown error'
 Cuda failure ./src/ccl_gpu.cu:197: 'unknown error'
 Cuda failure ./src/ccl_gpu.cu:197: 'unknown error'
 Cuda failure ./src/ccl_gpu.cu:197: 'unknown error'
+random,4000000,64,20.826752,27.791103
+random,4000000,64,18.672159,25.809055
+random,4000000,64,18.705088,25.524256
+random,4000000,64,18.537312,25.237375
+random,4000000,64,18.511808,25.296801
+random,4000000,64,18.577473,25.461121
+random,4000000,64,18.666241,25.627359
+random,4000000,64,16.263807,23.112640
+random,4000000,64,18.672384,25.196960
+random,4000000,64,18.668512,25.693119

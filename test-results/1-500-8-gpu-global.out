@@ -8,3 +8,13 @@ Cuda failure ./src/ccl_gpu_global.cu:211: 'invalid device ordinal'
 Cuda failure ./src/ccl_gpu_global.cu:211: 'invalid device ordinal'
 Cuda failure ./src/ccl_gpu_global.cu:211: 'invalid device ordinal'
 Cuda failure ./src/ccl_gpu_global.cu:211: 'invalid device ordinal'
+random,250000,64,1.085312,1.903296
+random,250000,64,0.861888,1.582080
+random,250000,64,0.876032,1.647616
+random,250000,64,0.873728,1.598656
+random,250000,64,0.873216,1.594624
+random,250000,64,1.029248,1.787456
+random,250000,64,1.031040,1.762080
+random,250000,64,0.909120,1.688192
+random,250000,64,0.907648,1.979136
+random,250000,64,0.881280,1.664416
