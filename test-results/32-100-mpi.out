@@ -1,0 +1,24 @@
+[host109-05-01:7636] *** An error occurred in MPI_Scatterv
+[host109-05-01:7636] *** reported by process [3324772353,31]
+[host109-05-01:7636] *** on communicator MPI_COMM_WORLD
+[host109-05-01:7636] *** MPI_ERR_COUNT: invalid count argument
+[host109-05-01:7636] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,
+[host109-05-01:7636] ***    and potentially your MPI job)
+[host109-05-01:7705] *** An error occurred in MPI_Scatterv
+[host109-05-01:7705] *** reported by process [3329097729,31]
+[host109-05-01:7705] *** on communicator MPI_COMM_WORLD
+[host109-05-01:7705] *** MPI_ERR_COUNT: invalid count argument
+[host109-05-01:7705] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,
+[host109-05-01:7705] ***    and potentially your MPI job)
+[host109-05-01:7711] *** An error occurred in MPI_Scatterv
+[host109-05-01:7711] *** reported by process [3316121601,0]
+[host109-05-01:7711] *** on communicator MPI_COMM_WORLD
+[host109-05-01:7711] *** MPI_ERR_COUNT: invalid count argument
+[host109-05-01:7711] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,
+[host109-05-01:7711] ***    and potentially your MPI job)
+[host109-05-01:7777] *** An error occurred in MPI_Scatterv
+[host109-05-01:7777] *** reported by process [3320446977,0]
+[host109-05-01:7777] *** on communicator MPI_COMM_WORLD
+[host109-05-01:7777] *** MPI_ERR_COUNT: invalid count argument
+[host109-05-01:7777] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,
+[host109-05-01:7777] ***    and potentially your MPI job)
