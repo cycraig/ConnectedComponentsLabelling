@@ -8,7 +8,7 @@ MPIFLAGS=-DOMPI_SKIP_MPICXX
 CC=nvcc
 MPICC=mpiCC
 
-all: ccl_unionfind ccl_gpu ccl_mpi ccl_gpu_global
+all: ccl_serial ccl_gpu ccl_mpi ccl_gpu_global
 
 #ccl: ./src/ccl.cu $(SHAREDH) $(SHAREDC)
 #	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl.cu $(LDFLAGS) -o ccl
@@ -16,8 +16,8 @@ all: ccl_unionfind ccl_gpu ccl_mpi ccl_gpu_global
 #ccl_fast: ./src/ccl_fast.cu $(SHAREDH) $(SHAREDC)
 #	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl_fast.cu $(LDFLAGS) -o ccl_fast
 
-ccl_unionfind: ./src/ccl_unionfind.cpp $(SHAREDH) $(SHAREDC)
-	$(MPICC) $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_unionfind.cpp $(LDFLAGS) -o ccl_unionfind
+ccl_serial: ./src/ccl_serial.cpp $(SHAREDH) $(SHAREDC)
+	$(MPICC) $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_serial.cpp $(LDFLAGS) -o ccl_serial
 
 ccl_gpu: ./src/ccl_gpu.cu $(SHAREDH) $(SHAREDC)
 	$(CC) $(CFLAGS) $(NVCCFLAGS) $(SHAREDC) ./src/ccl_gpu.cu $(LDFLAGS) -arch compute_30 -o ccl_gpu
@@ -29,4 +29,4 @@ ccl_mpi: ./src/ccl_mpi.cpp $(SHAREDH) $(SHAREDC)
 	$(MPICC) $(CFLAGS) $(SHAREDC) $(MPIFLAGS) ./src/ccl_mpi.cpp $(LDFLAGS) -o ccl_mpi
 
 clean:
-	rm ccl_unionfind ccl_gpu ccl_mpi ccl_gpu_global
+	rm ccl_serial ccl_gpu ccl_mpi ccl_gpu_global

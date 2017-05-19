@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
           bitmap,
           binaryImage,
           parsed_args,
-          "ccl_unionfind");
+          "ccl_serial");
   delete[] binaryImage;
   return 0;
 }
