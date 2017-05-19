@@ -15,17 +15,17 @@ set key left
 #fit h(x) "../results/gpu1.out" using 2:4 via c
 set xtic auto
 set ytic auto 
-set title "MPI Overhead Ratio"
-set ylabel "Ratio"
+set title "MPI Karp-Flatt Metric for fixed no. processors (4 processors over 2 nodes)"
+set ylabel "Karp-Flatt"
 set xlabel "No. pixels"
 #set size 1.5, 1.5
 #set xr [0.0:4000000.0]
-set yr [0:0.3]
+#set yr [0:100]
 #set xtics 500000,500000,10000000
 #set terminal epslatex oldstyle
 #set output "allInteg.eps"
 set terminal png size 1280,720 enhanced
-set output "gp_mpi_over_ratio.png"
+set output "gp_mpi_karp_wid.png"
 #set terminal svg size 750,450
 #set output "gp_gen.svg"
-plot "4-np.csv" using 2:6 w linespoints t "MPI labeling overhead / total time (4 processes, 2 nodes)", \
+plot "mpi-karp-wid.csv" using 2:7 w linespoints t "MPI Implementation", \
