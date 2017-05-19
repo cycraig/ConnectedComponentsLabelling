@@ -36,7 +36,7 @@ This will bring up a visualisation window before saving the image.
 To generate a psuedo-random image, you can use, e.g.:
 ./ccl_serial -m random -w 1024
 
-Not that it is mandatory to specify -2 when -m is set to random.
+Not that it is mandatory to specify -w when -m is set to random.
 This will save the image as random-1024x1024-ccl_serial.bmp
 
 For a full argument description, Try --help on any of the executables.
