@@ -10,7 +10,6 @@ Simply run make. Make sure your nvcc executables are exported properly!
 ./documents : Reference papers used for the algorithms and mentioned in report.
 ./inc : Neccesary libraries
 ./presentation: Our presentation
-./samples : Additional reference code
 ./report : Contains our report
 ,/test-scripts : Scripts used to perform benchmarks by submitting jobs on the cluster. These were hacked together, so we cannot guarantee that they will work 100% of the time.
 ./src: Our source code.

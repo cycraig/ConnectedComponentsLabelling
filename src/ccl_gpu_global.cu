@@ -13,9 +13,9 @@
  } \
 }
 
-//Defines a default thread block size (overwritte by args)
-int regionWidth = 32;
-int regionHeight = 32;
+//Defines a default thread block size (overwritten by args)
+int regionWidth = 8;
+int regionHeight = 8;
 int total_index;
 
 __global__ void gpu_label(int width, int height, int* globalImage) {
