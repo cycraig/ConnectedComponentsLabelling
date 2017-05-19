@@ -1,7 +1,12 @@
 #include "common_ccl.h"
+/*  common_ccl.h
+ *
+ *  Defines some shared functions for use by all of the implementations
+ */
 
 /**************ARGUMENT HANDLING****************/
 
+// Parse arguments with GNU argp
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     struct arguments *arguments = (struct arguments*)state->input;
     switch (key) {
@@ -28,7 +33,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     return 0;
 }
 
+//Main function to retrieve arguments
 bool get_args(int argc, char** argv, struct arguments* parsed_args) {
+  //Defaults
 	parsed_args->mode = NORMAL_MODE;
 	parsed_args->filename = NULL;
 	parsed_args->bench = false;
@@ -36,6 +43,7 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 	parsed_args->width = -1;
   parsed_args->region_width = 8;
 
+  //Argument/Program info
 	const char* argp_program_bug_address =
 	 "craig.bester@students.wits.ac.za|liam.pulles@students.wits.ac.za";
 	static char doc[] =
@@ -66,6 +74,7 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 	    { 0 }
 	};
 
+  //Main argp call
 	static struct argp argp = { options, parse_opt, 0, doc};
 	argp_parse(&argp, argc, argv, 0, 0, parsed_args);
 
@@ -87,6 +96,7 @@ bool get_args(int argc, char** argv, struct arguments* parsed_args) {
 }
 /***********END OF ARGUMENT HANDLING************/
 
+//Load the image
 bool start(int argc, char** argv,
     int& width, int& height,
     BMP& input,
@@ -128,6 +138,7 @@ bool start(int argc, char** argv,
         return true;
 }
 
+//Colourise, save image,
 void finish(int& width, int& height,
     BMP& output,
     CPUBitmap * bitmap,
@@ -149,6 +160,9 @@ void finish(int& width, int& height,
     }
 }
 
+//Give a specific color to each label
+//We sort of hash our labels here to a distinct color, so close labels
+//should in most cases get a quite distinct color
 void colourise(int* input, CPUBitmap* output, int width, int height) {
 	unsigned char *rgbaPixels = output->get_ptr();
 	for(int y = 0; y < height; y++) {
@@ -169,6 +183,7 @@ void colourise(int* input, CPUBitmap* output, int width, int height) {
 	}
 }
 
+//Generate a psuedo-random BMP file in memory
 void makeRandomBMP(BMP* output, int width, int height) {
   output->SetSize(width,height);
   output->SetBitDepth(32); // RGBA
@@ -190,6 +205,8 @@ void makeRandomBMP(BMP* output, int width, int height) {
   }
 }
 
+//Copy the BMP file to a Bitmap data structure.
+//We use the Bitmap for the visualisation.
 void copyBMPtoBitmap(BMP* input, CPUBitmap* output) {
 	unsigned char *rgbaPixels = output->get_ptr();
 	int width = input->TellWidth();
@@ -219,6 +236,10 @@ void copyBitmapToBMP(CPUBitmap* input, BMP* output) {
 	}
 }
 
+//This thresholds the colors in the image. For a greyscale image, it will send
+//value levels larger than 128 to white, and the rest to black.
+//How it will work on a color will vary, and this program is not meant
+//to be used on color images (in principle).
 void bitmapToBinary(CPUBitmap* input, int *output) {
 	unsigned char *rgbaPixels = input->get_ptr();
 	int width = input->x;
@@ -254,6 +275,7 @@ void binaryToBitmap(int *input, CPUBitmap* output) {
 	}
 }
 
+//Same as above, except values are already in the range 0-255
 void imageToBitmap(int *image, CPUBitmap* output) {
 	unsigned char *rgbaPixels = output->get_ptr();
 	int width = output->x;
@@ -269,6 +291,7 @@ void imageToBitmap(int *image, CPUBitmap* output) {
 	}
 }
 
+//For old code
 void getLabelColours(int** labelColours, int maxLabels) {
 	for(int i = 1; i <= maxLabels; i++) {
 		labelColours[i][0] = i * 131 % 255;
@@ -277,11 +300,13 @@ void getLabelColours(int** labelColours, int maxLabels) {
 	}
 }
 
+//For old code
 void markEquivalent(int** equivalenceMatrix, int a, int b) {
 	equivalenceMatrix[a][b] = 1;
 	equivalenceMatrix[b][a] = 1;
 }
 
+//For debugging purposes
 void printMatrix(int* matrix, int width, int height) {
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
@@ -296,6 +321,7 @@ void printMatrix(int* matrix, int width, int height) {
 	}
 }
 
+//For debugging purposes
 void printMatrix(int** matrix, int width, int height) {
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
@@ -310,6 +336,7 @@ void printMatrix(int** matrix, int width, int height) {
 	}
 }
 
+//For debugging purposes
 void printArray(int* array, int size) {
 	for(int i = 0; i < size; i++) {
 		printf("%d ",array[i]);
@@ -317,6 +344,7 @@ void printArray(int* array, int size) {
 	printf("\n");
 }
 
+//For old code
 void updateLabelArray(int* labelArray, int** L, int maxLabel) {
 	labelArray[0] = 0;
 	for(int label = 1; label <= maxLabel; label++) {
@@ -331,6 +359,7 @@ void updateLabelArray(int* labelArray, int** L, int maxLabel) {
 	//printArray(labelArray,maxLabel+1);
 }
 
+//For old code
 void resolveEquivalences(int** L, int maxLabel) {
 	int n = maxLabel;
 	for(int j = 1; j <= n; j++) {
@@ -346,6 +375,7 @@ void resolveEquivalences(int** L, int maxLabel) {
 	//printMatrix(L,n+1,n+1);
 }
 
+//For old code
 void updateRegion(int* region, int* labelArray, int width, int height) {
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
@@ -357,6 +387,7 @@ void updateRegion(int* region, int* labelArray, int width, int height) {
 	}
 }
 
+//For old code - debugging
 void printLabels(int* region, int width, int height) {
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
@@ -371,58 +402,8 @@ void printLabels(int* region, int width, int height) {
 	}
 }
 
+//Dummy functions called by visualizer
 void anim_gpu( DataBlock *d, int ticks ) {
-    /*HANDLE_ERROR( cudaEventRecord( d->start, 0 ) );
-    dim3    blocks(DIM/16,DIM/16);
-    dim3    threads(16,16);
-    CPUAnimBitmap  *bitmap = d->bitmap;
-
-    // since tex is global and bound, we have to use a flag to
-    // select which is in/out per iteration
-    volatile bool dstOut = true;
-    for (int i=0; i<90; i++) {
-        float   *in, *out;
-        if (dstOut) {
-            in  = d->dev_inSrc;
-            out = d->dev_outSrc;
-        } else {
-            out = d->dev_inSrc;
-            in  = d->dev_outSrc;
-        }
-        copy_const_kernel<<<blocks,threads>>>( in );
-        blend_kernel<<<blocks,threads>>>( out, dstOut );
-        dstOut = !dstOut;
-    }
-    float_to_color<<<blocks,threads>>>( d->output_bitmap,
-                                        d->dev_inSrc );
-
-    HANDLE_ERROR( cudaMemcpy( bitmap->get_ptr(),
-                              d->output_bitmap,
-                              bitmap->image_size(),
-                              cudaMemcpyDeviceToHost ) );
-
-    HANDLE_ERROR( cudaEventRecord( d->stop, 0 ) );
-    HANDLE_ERROR( cudaEventSynchronize( d->stop ) );
-    float   elapsedTime;
-    HANDLE_ERROR( cudaEventElapsedTime( &elapsedTime,
-                                        d->start, d->stop ) );
-    d->totalTime += elapsedTime;
-    ++d->frames;
-    printf( "Average Time per frame:  %3.1f ms\n",
-            d->totalTime/d->frames  );*/
 }
-
-// clean up memory allocated on the GPU
 void anim_exit( DataBlock *d ) {
-    /*
-    cudaUnbindTexture( texIn );
-    cudaUnbindTexture( texOut );
-    cudaUnbindTexture( texConstSrc );
-    HANDLE_ERROR( cudaFree( d->dev_inSrc ) );
-    HANDLE_ERROR( cudaFree( d->dev_outSrc ) );
-    HANDLE_ERROR( cudaFree( d->dev_constSrc ) );
-
-    HANDLE_ERROR( cudaEventDestroy( d->start ) );
-    HANDLE_ERROR( cudaEventDestroy( d->stop ) );
-    */
 }

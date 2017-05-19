@@ -4,7 +4,9 @@
 
 int commSize;
 
+
 class UF {
+// Based on open-source code from: https://github.com/kartikkukreja/blog-codes/blob/master/src/Union%20Find%20(Disjoint%20Set)%20Data%20Structure.cpp
   int *id;
 public:
     // Create an empty union find data structure with N isolated sets.
@@ -24,6 +26,7 @@ public:
         int root = p;
         while (root != id[root])
             root = id[root];
+        //Do some path compression
         while (p != root) {
             int newp = id[p];
             id[p] = root;
@@ -37,8 +40,8 @@ public:
         int i = find(x);
         int j = find(y);
         if (i == j) return;
-        //printf("(a=%d) %d equivalent to (b=%d) %d\n",x,i,y,j);
         // make smaller label priority
+        // note we set the "root" here
         if (j < i) {
             id[i] = j;
         } else {
@@ -108,12 +111,13 @@ int main(int argc, char **argv) {
   BMP input;
   struct arguments parsed_args;
 
+  //Parse args, load image
   if (!start(argc, argv,
       width, height,
       input,
       parsed_args)) exit(EXIT_FAILURE);
 
-
+  //Binarize, initialize output
   bitmap = new CPUBitmap( width, height, &data );
   data.bitmap = bitmap;
   copyBMPtoBitmap(&input,bitmap);
@@ -123,9 +127,13 @@ int main(int argc, char **argv) {
   output.SetBitDepth(32); // RGBA
 
 	fprintf(stderr,"LABELLING...\n");
+  //Start timing
   double start = MPI_Wtime();
-	label(binaryImage, width, height);
 
+  //Main algorithm
+  label(binaryImage, width, height);
+
+  //Print time
   double stop = MPI_Wtime();
       if (!parsed_args.bench) {
         printf("Time elapsed (total):     %.6f ms\n",(stop-start)*1000.0);
@@ -136,6 +144,7 @@ int main(int argc, char **argv) {
          (stop-start)*1000.0);
       }
 
+  //Colourise, display, and save
   finish(width, height,
           output,
           bitmap,

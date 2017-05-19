@@ -3,6 +3,7 @@
 #include "../inc/helper_cuda.h"
 #include "common_ccl.h"
 
+//For CUDA error checking
 #define cudaErrorCheck(t) { \
  t; \
  cudaError_t e=cudaGetLastError(); \
@@ -12,6 +13,7 @@
  } \
 }
 
+//Defines a default thread block size (overwritte by args)
 int regionWidth = 8;
 int regionHeight = 8;
 int total_index;
@@ -191,13 +193,16 @@ __global__ void gpu_rescan(int width, int height) {
 	}
 }
 
+//Get ready to do work on the GPU
 void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuTime) {
+    //Copy image over, bind to surface
     cudaArray* gpuImage;
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned);
     cudaErrorCheck(cudaMallocArray(&gpuImage, &channelDesc, width, height, cudaArraySurfaceLoadStore));
     cudaErrorCheck(cudaMemcpyToArray(gpuImage, 0, 0, image, width*height*sizeof(int), cudaMemcpyHostToDevice));
     cudaErrorCheck(cudaBindSurfaceToArray(surf_ref, gpuImage));
 
+    //Define grid
     dim3 block_dim(regionWidth, regionHeight);
     int gridWidth = width/block_dim.x;
     int gridHeight = height/block_dim.y;
@@ -205,11 +210,16 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuT
     if (height%block_dim.y != 0) gridHeight++;
     int result = false;
     dim3 grid_dim(gridWidth, gridHeight);
+
+    //Start timing
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
+    //Our main algorithm - reference the "Parallel Connected-Component
+    //Labeling Algorithm for GPGPU Applications" in ./documents for more
+    //understanding
     gpu_label<<<grid_dim, block_dim>>>(width, height);
     gpu_scan<<<grid_dim, block_dim>>>(width, height);
     gpu_analysis<<<grid_dim, block_dim>>>(width, height);
@@ -222,10 +232,13 @@ void gpu_label(int* image, CPUBitmap* output, int width, int height, float* gpuT
         cudaErrorCheck(cudaMemcpyFromSymbol(&result, done, sizeof(bool)));
     }
 
+    //Stop timing
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     *gpuTime = 0;
     cudaEventElapsedTime(gpuTime, start, stop);
+
+    //Get result
     cudaErrorCheck(cudaMemcpyFromArray(image, gpuImage, 0, 0,width*height*sizeof(int), cudaMemcpyDeviceToHost));
 	// apparently you don't need to unbind surfaces
     cudaErrorCheck(cudaFreeArray(gpuImage));
@@ -241,6 +254,7 @@ int main(int argc, char **argv) {
   BMP input;
   struct arguments parsed_args;
 
+  //Parse args, load image
   if (!start(argc, argv,
       width, height,
       input,
@@ -249,6 +263,7 @@ int main(int argc, char **argv) {
   regionWidth = parsed_args.region_width;
   regionHeight = parsed_args.region_width;
 
+  //Binarize, initialize output
   bitmap = new CPUBitmap( width, height, &data );
   data.bitmap = bitmap;
   copyBMPtoBitmap(&input,bitmap);
@@ -259,20 +274,24 @@ int main(int argc, char **argv) {
 
     fprintf(stderr,"LABELLING...\n");
 
+    //Start timing
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
+    //Main algorithm
     float gpuTime = 0;
     gpu_label(binaryImage,bitmap,width,height,&gpuTime);
 
+    //Stop timing
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
     fprintf(stderr,"FINISHED...\n");
 
+    //Print times
     if (!parsed_args.bench) {
       printf("Time elapsed (gpu): %.6f ms\n",gpuTime);
       printf("Time elapsed (total): %.6f ms\n",milliseconds);
@@ -283,6 +302,7 @@ int main(int argc, char **argv) {
        gpuTime,milliseconds);
     }
 
+    //Colourise, display, and save
     finish(width, height,
             output,
             bitmap,

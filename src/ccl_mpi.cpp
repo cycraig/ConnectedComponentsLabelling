@@ -139,6 +139,7 @@ void merge(int* unionImage, int rowsPerRank, int processes, int width, int heigh
 int main(int argc, char **argv) {
 	int rank, processes;
 
+  //Init MPI
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &processes);
@@ -152,6 +153,7 @@ int main(int argc, char **argv) {
   BMP input;
   struct arguments parsed_args;
 
+  //Parse args, load image
 	if (rank==0) {
 	  if (!start(argc, argv,
 	      width, height,
@@ -159,9 +161,9 @@ int main(int argc, char **argv) {
 	      parsed_args)) {
 			MPI_Finalize();
 			exit(EXIT_FAILURE);
-	}
+	   }
 
-
+    //Binarize, initialize output
 	  bitmap = new CPUBitmap( width, height, &data );
 	  data.bitmap = bitmap;
 	  copyBMPtoBitmap(&input,bitmap);
@@ -211,8 +213,8 @@ int main(int argc, char **argv) {
         merge(binaryImage, rowsPerRank, processes, width, height);
     }
 
+    //Print times
     double stop = MPI_Wtime();
-
     double stop_total = MPI_Wtime();
     if(rank == 0) {
         fprintf(stderr,"FINISHED...\n");
@@ -227,6 +229,7 @@ int main(int argc, char **argv) {
 				}
     }
 
+  //Colourise, display, and save
 	if(rank == 0) {
     finish(width, height,
             output,
