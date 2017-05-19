@@ -1,0 +1,33 @@
+# Gnuplot script file for plotting data in file "force.dat"
+# This file is called   force.p
+set autoscale
+set datafile separator ","
+unset log
+set key left
+#unset label
+#unset title
+#unset key
+#f(x) = a*x
+#fit f(x) "../results/union1.out" using 2:3 via a
+#g(x) = b*x
+#fit g(x) "../results/mpi4.out" using 2:4 via b
+#h(x) = c*x
+#fit h(x) "../results/gpu1.out" using 2:4 via c
+set xtic auto
+set ytic auto 
+set title "MPI Overhead"
+set ylabel "Time (ms)"
+set xlabel "No. pixels"
+#set size 1.5, 1.5
+#set xr [0.0:4000000.0]
+#set yr [0:100]
+#set xtics 500000,500000,10000000
+#set terminal epslatex oldstyle
+#set output "allInteg.eps"
+set terminal png size 1280,720 enhanced
+set output "gp_mpi_over.png"
+#set terminal svg size 750,450
+#set output "gp_gen.svg"
+plot "4-np.csv" using 2:3 w linespoints t "MPI labeling time only (4 processes, 2 nodes)", \
+     "4-np.csv" using 2:4 w linespoints t "MPI labeling + overhead time (4 processes, 2 nodes)", \
+     "4-np.csv" using 2:5 w linespoints t "MPI overhead time only (4 processes, 2 nodes)", \
