@@ -24,9 +24,9 @@ set yr [0:5]
 #set xtics 500000,500000,10000000
 #set terminal epslatex oldstyle
 #set output "allInteg.eps"
-#set terminal png size 1280,720 enhanced
-#set output "gp_gen.png"
-set terminal svg size 750,450
-set output "gp_speedup.svg"
+set terminal png size 1280,720 enhanced
+set output "gp_speedup.png"
+#set terminal svg size 750,450
+#set output "gp_speedup.svg"
 plot "mpi-speedup.csv" using 1:2 w linespoints t "MPI (4 processes, 2 nodes)", \
      "gpu-glob-speedup.csv" using 1:2 w linespoints t "GPU (global; 8x8 blocks)", \
